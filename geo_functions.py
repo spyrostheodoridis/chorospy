@@ -8,7 +8,7 @@ import numpy
 #########################################
 # funtion to produce polygons from points
 # inPoints is a list of lists e.g. [[[x1,y1], [x2,y2]], [[x3,y3], [x4,y4]]]
-# each list of points is saved as a seperate feauture in the final vector file
+# each list of points is saved as a seperate feauture in the final file
 #########################################
 def pointToGeo(inProj, inPoints, outFile, buffer = False, bufferZone = 10000, convexHull = False, outFormat = 'json'):
     #define projections for the transformation
