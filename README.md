@@ -3,12 +3,20 @@
 The geospatial-tools.py file provides a set a functions for creating and manipulating vector and raster data.
 
 ## Prerequisites
-The functions are written in Python 3 and are based on GDAL 2. Ideally the user should run the functions in an isolated python environment (see https://docs.python.org/3/library/venv.html) 
-The following python packages should be installed:
+The functions are written in Python 3 and are based on GDAL 2. Ideally the user should run the package in an isolated python environment (see https://docs.python.org/3/library/venv.html) 
+The following python packages should already be installed:
 osgeo, pandas, numpy
 
 
 ## Examples
+
+# download and define the directory of the geospatial-tools folder
+```python
+import sys 
+sys.path.append('./geospatial-tools/')
+
+from geo_functions import *
+```
 
 The function below creates a geojson file with two features. Each feature is a multipolygone
 that consists of three buffer zones (50km is the default value) created from the input points.
