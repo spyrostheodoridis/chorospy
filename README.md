@@ -1,9 +1,9 @@
 # geospatial-tools
 
-The geospatial-tools.py file provides a set a functions for creating and manipulating vector and raster data.
+This is a set a functions for creating and manipulating vector and raster data, common tasks in spatial ecology, biodiversity research etc.
 
 ## Prerequisites
-The functions are written in Python 3 and are based on GDAL 2. Ideally the user should run the package in an isolated python environment (see https://docs.python.org/3/library/venv.html) 
+The functions are written in Python 3 and are based on GDAL 2. It is preferred to run the package in an isolated python environment (see https://docs.python.org/3/library/venv.html) 
 The following python packages should already be installed:
 osgeo, pandas, numpy
 
