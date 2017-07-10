@@ -13,8 +13,8 @@ osgeo, pandas, numpy
 The function below creates a geojson file with two features. Each feature is a multipolygone that consists of three buffer zones (50km is the default value) created from the input points
 The id's of the two features are geom_1 and geom_2 respectively
 ```python
-inPoints = [[[0, 10],[0, 20], [10,20], 
-[[30,40],[30, 45],[35, 30]]]
+inPoints = [[[0, 10],[0, 20], [10,20], \
+            [[30,40],[30, 45],[35, 30]]]
 pointToGeo(inProj = 4326, inPoints = inPoints, outFile = 'test', fields = {'id': ['geom_1','geom_2']}, buffer = True)
 ```
 
