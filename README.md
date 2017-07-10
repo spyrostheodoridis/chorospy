@@ -19,7 +19,7 @@ pointToGeo(inProj = 4326, inPoints = inPoints, outFile = 'test', fields = {'id':
 
 Create a shp file with two features. Each feature is a polygone with edges corresponding to the provided points
 ```
-pointToGeo(inProj = 4326, inPoints = inPoints, outFile = 'test', fields = {'id': ['geom_1','geom_2']})
+pointToGeo(inProj = 4326, inPoints = inPoints, outFile = 'test', fields = {'id': ['geom_1','geom_2']}, outFormat = 'shp')
 ```
 
 Disaggregate points closer than one kilometer (0.008333333333333 degrees). 'x' and 'y' are the name of the columns with Longitude and Latitude data
