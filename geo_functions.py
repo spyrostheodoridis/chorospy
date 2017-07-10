@@ -10,7 +10,7 @@ import numpy
 # inPoints is a list of lists e.g. [[[x1,y1], [x2,y2]], [[x3,y3], [x4,y4]]]
 # each list of points is saved as a seperate feauture in the final file
 #########################################
-def pointToGeo(inProj, inPoints, outFile, buffer = False, bufferZone = 10000, convexHull = False, outFormat = 'json'):
+def pointToGeo(inProj, inPoints, outFile, fields, buffer = False, bufferZone = 50000, convexHull = False, outFormat = 'json'):
     #define projections for the transformation
     inSpatialRef = osr.SpatialReference()
     inSpatialRef.ImportFromEPSG(inProj)
@@ -34,8 +34,13 @@ def pointToGeo(inProj, inPoints, outFile, buffer = False, bufferZone = 10000, co
     #Create layer
     layer = shapeData.CreateLayer('clipExtent', inSpatialRef, ogr.wkbMultiPolygon)
     layerDefinition = layer.GetLayerDefn()
-
-
+    #create fields/properties of features
+    for prop in fields.keys():
+        fieldName = prop
+        fieldType = ogr.OFTString
+        propField = ogr.FieldDefn(fieldName, fieldType)
+        layer.CreateField(propField)
+        
     for i, feat in enumerate(inPoints):
         # create feature
         featureIndex = i
@@ -43,56 +48,61 @@ def pointToGeo(inProj, inPoints, outFile, buffer = False, bufferZone = 10000, co
         # create geometries
         if buffer == True:
             #create multipolygone to store buffer zones
-            multiPoly = ogr.Geometry(ogr.wkbMultiPolygon)
+            outPoly = ogr.Geometry(ogr.wkbMultiPolygon)
             for point in feat:
                 gps_point = ogr.Geometry(ogr.wkbPoint)
                 gps_point.AddPoint(point[0],point[1])
                 gps_point.Transform(coordTransform)
                 buffPoint = gps_point.Buffer(bufferZone)
-                multiPoly.AddGeometry(buffPoint)
+                outPoly.AddGeometry(buffPoint)
             
             #join overlapping polygones
-            multiPoly = multiPoly.UnionCascaded()
+            outPoly = outPoly.UnionCascaded()
             
             if convexHull == True:
                 # Calculate convex hull
-                multiPoly = multiPoly.ConvexHull()
+                outPoly = outPoly.ConvexHull()
 
             #reproject back to WGS84
             FinTransform = osr.CoordinateTransformation(outSpatialRef, inSpatialRef)
-            multiPoly.Transform(FinTransform)
+            outPoly.Transform(FinTransform)
             # geometry in feature
-            feature.SetGeometry(multiPoly)
-            feature.SetFID(featureIndex)
+            feature.SetGeometry(outPoly)
+                        
             # feature in layer
             layer.CreateFeature(feature)
 
-        else: #simple polygones from points
-                multiPoly = ogr.Geometry(ogr.wkbPolygon)
-                ring = ogr.Geometry(ogr.wkbLinearRing)
+        else: #simple polygone from points
+            outPoly = ogr.Geometry(ogr.wkbPolygon)
+            ring = ogr.Geometry(ogr.wkbLinearRing)
 
-                for point in feat:
-                    gps_point = ogr.Geometry(ogr.wkbPoint)
-                    gps_point.AddPoint(point[0],point[1])
-                    ring.AddPoint(gps_point.GetX(), gps_point.GetY())
+            for point in feat:
+                gps_point = ogr.Geometry(ogr.wkbPoint)
+                gps_point.AddPoint(point[0],point[1])
+                ring.AddPoint(gps_point.GetX(), gps_point.GetY())
 
-                multiPoly.AddGeometry(ring)
-                # geometry in feature
-                feature.SetGeometry(multiPoly)
-                feature.SetFID(featureIndex)
-                # feature in layer
-                layer.CreateFeature(feature)
+            outPoly.AddGeometry(ring)
+            # geometry in feature
+            feature.SetGeometry(outPoly)
+            # add the defined properties
+            for f in range(layerDefinition.GetFieldCount()):
+                proper = layerDefinition.GetFieldDefn(f).GetName()
+                feature.SetField(proper, fields[proper][featureIndex])
+
+            # feature in layer
+            layer.CreateFeature(feature)
+            
 
         #Clean
-        multiPoly.Destroy()
+        outPoly.Destroy()
         feature.Destroy()
-        shapeData.Destroy()
+    shapeData.Destroy()
         
     print('Geometry file created!')
         
 #function for disaggregating occurence points
-# dist in degrees
-# 100m = 0.001189387868; for 1km = 0.008333333333333; for 10km = 0.08333333333333
+# distance in degrees
+# 100m = 0.001189387868; 1km = 0.008333333333333; 10km = 0.08333333333333
 def disaggregate(df, Lon, Lat, dist): 
     train = df.drop_duplicates() #drop dublicates
     finalDF = pandas.DataFrame(columns=[Lon, Lat])
@@ -123,7 +133,7 @@ def disaggregate(df, Lon, Lat, dist):
     return(finalDF, removedDF)
 
 
-def getValuesAtPoint(indir, rasterfileList, pos):
+def getValuesAtPoint(indir, rasterfileList, pos, Lon, Lat):
     #gt(2) and gt(4) coefficients are zero, and the gt(1) is pixel width, and gt(5) is pixel height.
     #The (gt(0),gt(3)) position is the top left corner of the top left pixel of the raster.
     for i, rs in enumerate(rasterfileList):
@@ -167,7 +177,7 @@ def getValuesAtPoint(indir, rasterfileList, pos):
     return df
 
 
-#### function to get all coordinates and corresponding values of the raster pixels
+#### function to get all pixel center coordinates and corresponding values from rasters
 def getRasterValues(indir, rasterfileList):
     
     for i, rs in enumerate(rasterfileList):
@@ -201,8 +211,9 @@ def getRasterValues(indir, rasterfileList):
             df[rs] = pandas.Series(vList)
             
     return(df)
- 
-# geo raster to numpy     
+
+
+# geo raster to numpy array    
 def raster2array(rasterfn):
     raster = gdal.Open(rasterfn)
     band = raster.GetRasterBand(1)
