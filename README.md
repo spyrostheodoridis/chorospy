@@ -10,7 +10,7 @@ osgeo, pandas, numpy
 
 ## Examples
 
-# download and define the directory of the geospatial-tools folder
+Download the geo_functions.py file and define its directory
 ```python
 import sys 
 sys.path.append('./geospatial-tools/')
