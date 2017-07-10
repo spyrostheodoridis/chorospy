@@ -36,7 +36,7 @@ rsValues = getValuesAtPoint('.', inRasters, filteredPoints, 'x', 'y')
 rsValues.to_csv('rsValues.csv', index=False)
 ```
 
-The function below extracts all values of rasters and provide the centroid of each cell.
+The function below extracts all values of rasters and provides the centroid of each cell.
 ```
 inRasters = ['bio3', 'bio6']
 rsValues = getValuesAtPoint('.', inRasters)
