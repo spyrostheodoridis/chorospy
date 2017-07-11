@@ -12,7 +12,7 @@ osgeo, pandas, numpy
 Download the spatiopy package and define local directory
 ```python
 import sys 
-sys.path.append('./pathtospatiopypackage/')
+sys.path.append('pathtospatiopypackage/')
 
 import spatiopy
 ```
