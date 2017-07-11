@@ -15,7 +15,7 @@ Download the geo_functions.py file and define its directory
 import sys 
 sys.path.append('./geospatial-tools/')
 
-from geo_functions import *
+import geo_functions
 ```
 
 The function below creates a geojson file with two features. Each feature is a multipolygone
