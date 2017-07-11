@@ -1,9 +1,9 @@
 # geospatial-tools
 
-The geospatial-tools package contains a set a functions for creating and manipulating vector and raster data, common tasks in fields like spatial ecology, biodiversity conservation etc.
+The geospatial-tools module contains a set a functions for creating and manipulating vector and raster data, common tasks in fields like spatial ecology, biodiversity conservation etc.
 
 ## Prerequisites
-The functions are written in Python 3 and are based on GDAL 2. It is preferred to run the package in an isolated python environment (see https://docs.python.org/3/library/venv.html).
+The functions are written in Python 3 and are based on GDAL 2. It is preferred to run the module in an isolated python environment (see https://docs.python.org/3/library/venv.html).
 Apart from a system-wide installation of GDAL (http://www.gdal.org/), the following python packages should also be already installed:
 osgeo, pandas, numpy
 
