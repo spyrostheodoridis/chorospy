@@ -9,10 +9,10 @@ osgeo, pandas, numpy
 
 ## Examples
 
-Download the spatiopy package and define its directory
+Download the spatiopy package and define local directory
 ```python
 import sys 
-sys.path.append('./pathtospatiopyfolder/')
+sys.path.append('./pathtospatiopypackage/')
 
 import spatiopy
 ```
