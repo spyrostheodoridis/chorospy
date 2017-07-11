@@ -1,5 +1,6 @@
 from osgeo import osr, gdal
 import pandas
+import numpy
 
 
 def getValuesAtPoint(indir, rasterfileList, pos, Lon, Lat):
