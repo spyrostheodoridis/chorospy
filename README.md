@@ -62,10 +62,9 @@ rsValues.to_csv('rsValues.csv', index=False)
 ### Create raster of species richness / occurrence density
 Given a list of species and their occurrences, one can create a species richness map the desirable resolution. The following function
 takes a data frame with species occurrences and a vector file defining the extent of the map, and creates a raster file whose cell values
-represent the number of species in the respective cell
+represent the number of species in the respective cell.
 ```python
 #let's create first a pseudo data set using random species - points pairs. In this case the center of diversity is located at 15N, 60E somewhere in Sweden
-
 import random
 import pandas
 spOcc = []
@@ -74,7 +73,7 @@ for i in range(10000):
 
 sp = pandas.DataFrame(spOcc)
 
-#disaggregate the points for each species. We use a 10km distance (0.08333333) and cell size 
+#disaggregate the points for each species. We use a 10km distance (0.08333333). The same number will be used to define the raster resolution 
 DF = pandas.DataFrame()
 for species in sp.species.unique():
     df = sp[sp.species == species]
