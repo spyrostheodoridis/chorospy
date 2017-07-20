@@ -102,9 +102,9 @@ def pointToGeo(inProj, inPoints, outFile, fields, buffer = False, bufferZone = 5
 #function for disaggregating occurence points
 # distance in degrees
 # 100m = 0.001189387868; 1km = 0.008333333333333; 10km = 0.08333333333333
-def disaggregate(df, Lon, Lat, dist): 
+def disaggregate(df, sp, Lon, Lat, dist): 
     train = df.drop_duplicates() #drop dublicates
-    finalDF = pandas.DataFrame(columns=[Lon, Lat])
+    finalDF = pandas.DataFrame(columns=[sp, Lon, Lat])
     removedDF = pandas.DataFrame(columns=[Lon, Lat])
     kept = 0
     excl = 0
@@ -118,11 +118,11 @@ def disaggregate(df, Lon, Lat, dist):
         #if there exists points with smaller distance, exclude point
         if eucl[eucl <= dist].count() > 1:
             excl+=1
-            exclRow = train.loc[i, [Lon,Lat]]
+            exclRow = train.loc[i,]
             removedDF = removedDF.append(exclRow, ignore_index=True)
         else:
             kept+=1
-            keptRow = train.loc[i, [Lon,Lat]]
+            keptRow = train.loc[i,]
             finalDF = finalDF.append(keptRow, ignore_index=True)
 
 
