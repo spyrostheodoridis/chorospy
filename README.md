@@ -63,6 +63,7 @@ rsValues.to_csv('rsValues.csv', index=False)
 Given a list of species and their occurrences, one can create a species richness map the desirable resolution. The following function
 takes a data frame with species occurrences and a vector file defining the extent of the map, and creates a raster file whose cell values
 represent the number of species in the respective cell. Only the occurrences that fall within the extent of the vector file will be considered.
+Occurrences that fall outside the polygones (the sea in our example) will be printed in the screen.
 ```python
 #let's create first a pseudo data set using 10000 random species occurrences for 10 species. In this case the center of diversity is located at 15N, 60E somewhere in Sweden
 import random
@@ -83,7 +84,7 @@ for species in sp.species.unique():
 DF.reset_index(drop = True, inplace = True)
 
 #now let's create the raster ('test.tif'). The last argument is the no data value
-spatiopy.makeDensityRaster(DF, 'full_north.json', 0.08333333, 'test.tif', -9999)
+spatiopy.makeDensityRaster(DF, 'sweden.json', 0.08333333, 'test.tif', -9999)
 ```
 
 Note: The same function  can be used to create an occurrence density map (e.g. for a single species) without disaggregating the occurrences.
