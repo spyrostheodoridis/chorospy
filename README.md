@@ -84,5 +84,6 @@ DF.reset_index(drop = True, inplace = True)
 
 #now let's create the raster ('test.tif'). The last argument is the no data value
 spatiopy.makeDensityRaster(DF, 'full_north.json', 0.08333333, 'test.tif', -9999)
+```
 
 Note: The same function  can be used to create an occurrence density map (e.g. for a single species) without disaggregating the occurrences.
