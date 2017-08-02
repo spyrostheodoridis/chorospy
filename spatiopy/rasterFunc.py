@@ -79,7 +79,8 @@ def getRasterValues(indir, rasterfileList):
             gdata = None
             vList = [c for r in data for c in r]
             df[rs] = pandas.Series(vList)
-            
+    
+    data = None       
     return(df)
 
 
@@ -90,6 +91,10 @@ def raster2array(rasterfn):
     nodata = band.GetNoDataValue()
     array = band.ReadAsArray()
     
+    proj = raster.GetProjection()
+    inproj = osr.SpatialReference()
+    inproj.ImportFromWkt(proj)
+    
     geoTransform = raster.GetGeoTransform()
     minx = geoTransform[0]
     maxy = geoTransform[3]
@@ -97,16 +102,45 @@ def raster2array(rasterfn):
     miny = maxy + geoTransform[5]*raster.RasterYSize
     extent =  [minx, maxx, miny, maxy]
     del raster, band
-    return array, nodata, extent
+    return array, nodata, extent, inproj
+
+# create a reference raster with random values    
+def createRaster(outRas, extCells, pixelSize, dataType = "float32"):
+    NP2GDAL_CONVERSION = { "uint8": 1, "int8": 1, "uint16": 2, "int16": 3, 
+                          "uint32": 4, "int32": 5, "float32": 6, "float64": 7,
+                          "complex64": 10, "complex128": 11,
+                         }
+    # Create the destination data source
+    xRes = int((extCells[2] - extCells[0]) / pixelSize)
+    yRes = int((extCells[3] - extCells[1]) / pixelSize)
+
+    targetRas = gdal.GetDriverByName('GTiff').Create(outRas, xRes, yRes, 1, NP2GDAL_CONVERSION[dataType])
+    targetRas.SetGeoTransform((extCells[0], pixelSize, 0, extCells[3], 0, -pixelSize))
+    
+    g = numpy.zeros((yRes,xRes), eval('numpy.{}'.format(dataType)))
+    
+    for i in range(yRes):
+        for j in range(xRes):
+            g[i,j] = numpy.random.random_sample()
+
+    targetRasSRS = osr.SpatialReference()
+    targetRasSRS.ImportFromEPSG(4326)
+    targetRas.SetProjection(targetRasSRS.ExportToWkt())
+
+    band = targetRas.GetRasterBand(1)
+    band.SetNoDataValue(-9999)
+    band.WriteArray(g)
+    band.FlushCache()
+
 
 # numpy array to geo raster
-def array2raster(newRaster, RefRaster,array, noData, datatype):
+def array2raster(newRaster, RefRaster, array, noData, dataType):
     #data type conversion
     NP2GDAL_CONVERSION = { "uint8": 1, "int8": 1, "uint16": 2, "int16": 3, 
                           "uint32": 4, "int32": 5, "float32": 6, "float64": 7,
                           "complex64": 10, "complex128": 11,
                          }
-    
+    #get info from reference raster
     rfRaster = gdal.Open(RefRaster)
     geotransform = rfRaster.GetGeoTransform()
     originX = geotransform[0]
@@ -115,15 +149,21 @@ def array2raster(newRaster, RefRaster,array, noData, datatype):
     pixelHeight = geotransform[5]
     cols = array.shape[1]
     rows = array.shape[0]
-
-    driver = gdal.GetDriverByName('GTiff')
-    outRaster = driver.Create(newRaster, cols, rows,1, NP2GDAL_CONVERSION[datatype])
+    #create new raster
+    outRaster = gdal.GetDriverByName('GTiff').Create(newRaster, cols, rows,1, NP2GDAL_CONVERSION[dataType])
     outRaster.SetGeoTransform((originX, pixelWidth, 0, originY, 0, pixelHeight))
+    #write array to band
     outband = outRaster.GetRasterBand(1)
     outband.SetNoDataValue(noData)
     outband.WriteArray(array)
+    #define new raster projection
     outRasterSRS = osr.SpatialReference()
     outRasterSRS.ImportFromWkt(rfRaster.GetProjectionRef())
     outRaster.SetProjection(outRasterSRS.ExportToWkt())
+    #write raster
     outband.FlushCache()
     del rfRaster
+    
+
+    
+ 

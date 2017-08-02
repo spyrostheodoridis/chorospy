@@ -9,10 +9,10 @@ osgeo, pandas, numpy
 
 ## Examples
 
-Download the spatiopy package and define local directory
+Download the spatiopy package and define it's directory
 ```python
 import sys 
-sys.path.append('pathtospatiopypackage/')
+sys.path.append('pathToSpatiopyFolder/')
 
 import spatiopy
 ```
@@ -60,7 +60,7 @@ rsValues.to_csv('rsValues.csv', index=False)
 ```
 
 ### Create raster of species richness / occurrence density
-Given a list of species and their occurrences, one can create a species richness map the desirable resolution. The following function
+Given a list of species and their occurrences, one can create a species richness map at the desirable resolution. The following function
 takes a data frame with species occurrences and a vector file defining the extent of the map, and creates a raster file whose cell values
 represent the number of species in the respective cell. Only the occurrences that fall within the extent of the vector file will be considered.
 Occurrences that fall outside the polygones (the sea in our example) will be printed in the screen.
