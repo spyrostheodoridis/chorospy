@@ -70,7 +70,7 @@ spatiopy.createRaster('cells.tif', [10, 55, 20, 60], 0.0833333)
 #then run the function
 filteredArray = filterByCoverage('output.json', 'cells.tif', 50)
 #and finally export the array to a raster file. 
-spatiopy.array2raster('cellsFiltered.tif', 'cells.tif', filteredArray, -9999, "float32")
+spatiopy.array2raster('cellsFiltered.tif', 'cells.tif', filteredArray, -9999, 'float32')
 ```
 
 ### Create raster of species richness / occurrence density
