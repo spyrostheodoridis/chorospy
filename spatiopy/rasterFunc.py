@@ -1,7 +1,6 @@
-from osgeo import osr, gdal
+from osgeo import osr,ogr,gdal
 import pandas
 import numpy
-
 
 def getValuesAtPoint(indir, rasterfileList, pos, Lon, Lat):
     #gt(2) and gt(4) coefficients are zero, and the gt(1) is pixel width, and gt(5) is pixel height.
@@ -58,7 +57,7 @@ def getRasterValues(indir, rasterfileList):
             gt = gdata.GetGeoTransform()
             data = gdata.ReadAsArray().astype(numpy.float)
             #free memory
-            gdata = None
+            del gdata
 
             x0, y0 , w , h = gt[0], gt[3], gt[1], gt[5]
 
@@ -80,7 +79,7 @@ def getRasterValues(indir, rasterfileList):
             vList = [c for r in data for c in r]
             df[rs] = pandas.Series(vList)
     
-    data = None       
+    del data       
     return(df)
 
 
@@ -101,8 +100,9 @@ def raster2array(rasterfn):
     maxx = minx + geoTransform[1]*raster.RasterXSize
     miny = maxy + geoTransform[5]*raster.RasterYSize
     extent =  [minx, maxx, miny, maxy]
+    pixelSizeXY = [geoTransform[1], geoTransform[5]]
     del raster, band
-    return array, nodata, extent, inproj
+    return [array, nodata, extent, inproj, pixelSizeXY]
 
 # create a reference raster with random values    
 def createRaster(outRas, extCells, pixelSize, dataType = "float32"):
@@ -110,9 +110,10 @@ def createRaster(outRas, extCells, pixelSize, dataType = "float32"):
                           "uint32": 4, "int32": 5, "float32": 6, "float64": 7,
                           "complex64": 10, "complex128": 11,
                          }
-    # Create the destination data source
-    xRes = int((extCells[2] - extCells[0]) / pixelSize)
-    yRes = int((extCells[3] - extCells[1]) / pixelSize)
+    
+    # Create the destination data source        
+    xRes = int(numpy.ceil((extCells[2] - extCells[0]) / pixelSize))
+    yRes = int(numpy.ceil((extCells[3] - extCells[1]) / pixelSize))
 
     targetRas = gdal.GetDriverByName('GTiff').Create(outRas, xRes, yRes, 1, NP2GDAL_CONVERSION[dataType])
     targetRas.SetGeoTransform((extCells[0], pixelSize, 0, extCells[3], 0, -pixelSize))
@@ -131,6 +132,57 @@ def createRaster(outRas, extCells, pixelSize, dataType = "float32"):
     band.SetNoDataValue(-9999)
     band.WriteArray(g)
     band.FlushCache()
+
+#function to filter raster cells based on the coverage by some vector features
+def filterByCoverage(vectorFile, rasterFile, covPerc):
+    
+    srcVector = ogr.Open(vectorFile)
+    srcLayer = srcVector.GetLayer()
+    # merge all features in one geometry (multi polygone)
+    multi  = ogr.Geometry(ogr.wkbMultiPolygon)
+    for feature in srcLayer:
+        geom = feature.GetGeometryRef()
+        multi.AddGeometry(geom)
+    
+    #attributes of raster file
+    rasList = raster2array(rasterFile)
+
+    xsize = rasList[4][0]
+    ysize = abs(rasList[4][1])
+
+    pixel_area = xsize*ysize
+
+    rows = rasList[0].shape[0]
+    cols = rasList[0].shape[1]
+
+    x1 = rasList[2][0]
+    y1 = rasList[2][3]
+    
+    #iterate over raster cells
+    for i in range(rows):
+        for j in range(cols):
+            ring = ogr.Geometry(ogr.wkbLinearRing)
+
+            ring.AddPoint(x1, y1)
+            ring.AddPoint(x1 + xsize, y1)
+            ring.AddPoint(x1 + xsize, y1 - ysize)
+            ring.AddPoint(x1, y1 - ysize)
+            ring.AddPoint(x1, y1)
+
+            poly = ogr.Geometry(ogr.wkbPolygon)
+            poly.AddGeometry(ring)
+
+            intersect = multi.Intersection(poly)
+
+            if intersect.ExportToWkt() != 'GEOMETRYCOLLECTION EMPTY':
+                perc = (intersect.GetArea()/pixel_area)*100
+                if perc > covPerc:
+                    rasList[0][i][j] = numpy.nan     
+            x1 += xsize
+        x1 = rasList[2][0]
+        y1 -= ysize
+    
+    return(rasList[0]) #return the filtered array
 
 
 # numpy array to geo raster

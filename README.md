@@ -59,13 +59,27 @@ rsValues = spatiopy.getRasterValues('.', inRasters)
 rsValues.to_csv('rsValues.csv', index=False)
 ```
 
+### Filter raster file
+In some cases, a researcher may want to exclude some cells from downstream spatial analyses, based on the coverage of these cells
+by some natural features (e.g. water). The function below modifies a raster file based on the coverage by water. The water bodies are
+given as features (geojson file) and the cells of the raster file that are covered by more than 50% (arbitrary number) of water are
+assigned a nan value. The function returns an array that is subsequently saved as a new raster.
+```python
+#first, let's create a raster that covers the specified extent at the specified resolution (0.00833333 )
+spatiopy.createRaster('cells.tif', [10, 55, 20, 60], 0.0833333)
+#then run the function
+filteredArray = filterByCoverage('output.json', 'cells.tif', 50)
+#and finally export the array to a raster file. 
+spatiopy.array2raster('cellsFiltered.tif', 'cells.tif', filteredArray, -9999, "float32")
+```
+
 ### Create raster of species richness / occurrence density
 Given a list of species and their occurrences, one can create a species richness map at the desirable resolution. The following function
 takes a data frame with species occurrences and a vector file defining the extent of the map, and creates a raster file whose cell values
 represent the number of species in the respective cell. Only the occurrences that fall within the extent of the vector file will be considered.
 Occurrences that fall outside the polygones (the sea in our example) will be printed in the screen.
 ```python
-#let's create first a pseudo data set using 10000 random species occurrences for 10 species. In this case the center of diversity is located at 15N, 60E somewhere in Sweden
+#first, let's create a pseudo data set using 10000 random species occurrences for 10 species. In this case the center of diversity is located at 15N, 60E somewhere in Sweden
 import random
 import pandas
 spOcc = []

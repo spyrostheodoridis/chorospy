@@ -78,7 +78,7 @@ def pointToGeo(inProj, inPoints, outFile, fields, buffer = False, bufferZone = 5
             for point in feat:
                 gps_point = ogr.Geometry(ogr.wkbPoint)
                 gps_point.AddPoint(point[0],point[1])
-                ring.AddPoint(gps_point.GetX(), gps_point.GetY())
+                ring.AddPoint(gps_point.GetX(), gps_point.GetY()) #or directly ring.AddPoint(point[0], point[1])
 
             outPoly.AddGeometry(ring)
             # geometry in feature
