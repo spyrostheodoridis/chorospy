@@ -1,3 +1,4 @@
-from spatiopy.spatiopy.rasterFunc import getValuesAtPoint, getRasterValues, raster2array, array2raster, createRaster, filterByCoverage
-from spatiopy.spatiopy.vectorFunc import pointToGeo, disaggregate
-from spatiopy.spatiopy.bioFunc import makeDensityRaster
+from chorospy.chorospy.rasterFunc import getValuesAtPoint, getRasterValues, raster2array, array2raster, createRaster, filterByCoverage
+from chorospy.chorospy.vectorFunc import pointToGeo, disaggregate
+from chorospy.chorospy.bioFunc import makeDensityRaster
+from chorospy.chorospy.transFunc import rasterToJSON

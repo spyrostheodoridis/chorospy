@@ -1,6 +1,6 @@
-# spatiopy
+# chorospy
 
-The spatiopy package contains a set a functions for creating and manipulating vector and raster data, common tasks in research fields like spatial ecology, biodiversity conservation etc.
+The chorospy package contains a set a functions for creating and manipulating vector and raster data, common tasks in research fields like spatial ecology, biodiversity conservation etc.
 
 ## Prerequisites
 The modules are written in Python 3 and are based on GDAL 2. It is preferred to run the modules in an isolated python environment (see https://docs.python.org/3/library/venv.html).
@@ -9,53 +9,58 @@ osgeo, pandas, numpy
 
 ## Examples
 
-Download the spatiopy package and define it's directory
+Download the chorospy package and define it's directory
 ```python
 import sys 
-sys.path.append('pathToSpatiopyFolder/')
+sys.path.append('pathTochorospyFolder/')
 
-import spatiopy
+import chorospy
 ```
 
 ### Points to polygone(s)
-The function below creates a geojson file with two features. Each feature is a multipolygone
+The function below creates a geojson file (see http://geojson.org/) with two features. Each feature is a multipolygone
 that consists of three buffer zones (50km is the default value) created from the input points.
 The id's of the two features are geom_1 and geom_2 respectively.
 ```python
 inPoints = [[[0, 10],[0, 20], [10,20]], 
             [[30,40],[30, 45],[35, 30]]]
-spatiopy.pointToGeo(inProj = 4326, inPoints = inPoints, outFile = 'test', fields = {'id': ['geom_1','geom_2']}, buffer = True)
+chorospy.pointToGeo(inProj = 4326, inPoints = inPoints, outFile = 'test', fields = {'id': ['geom_1','geom_2']}, buffer = True)
+```
+if both the buffer and the convexHull arguments are set to True the function will create a convex hull of the buffer zones.
+```python
+chorospy.pointToGeo(inProj = 4326, inPoints = inPoints, outFile = 'test', fields = {'id': ['geom_1','geom_2']}, buffer = True, convexHull = True)
 ```
 
-The function below creates a shp file with two features. Each feature is a polygone with edges corresponding to the provided points.
+When the buffer argument buffer is left to the default value (false) the same function creates polygones with edges corresponding to the provided points. Using the same dataset as above
+the function below will create two simple polygones.
 ```python
-spatiopy.pointToGeo(inProj = 4326, inPoints = inPoints, outFile = 'test', fields = {'id': ['geom_1','geom_2']}, outFormat = 'shp')
+chorospy.pointToGeo(inProj = 4326, inPoints = inPoints, outFile = 'test', fields = {'id': ['geom_1','geom_2']}, outFormat = 'shp')
 ```
 
 ### Filter points
-The following function disaggregates points closer than one kilometer (0.008333333333333 degrees). 'x' and 'y' are the name of the columns with Longitude and Latitude data
+The following function disaggregates points closer than one kilometer (0.008333333333333 degrees). 'x' and 'y' are the name of the columns with Longitude and Latitude data.
 ```python
 import pandas
 inPoints = pandas.read_csv('myPointFile.csv')
-filteredPoints, removedPoints = spatiopy.disaggregate(inPoints, 'x', 'y', 0.008333333333333)
+filteredPoints, removedPoints = chorospy.disaggregate(inPoints, 'x', 'y', 0.008333333333333)
 ```
 
 ### Get raster values
-The function below extracts values of rasters for the given points. The function takes a set of rasters and a set of points 
+The function below extracts values of rasters for the provided coordinates. The function takes a set of rasters and a set of points 
 (i.e. a pandas dataframe with the point coordinates) as inputs and returns a new pandas data frame with the same point coordinates
 (the centroids of the cells are also calculated and printed) and the values of the rasters for each point. Raster format should be 
 geotif. The first argument defines the directory where the rasters are located. The names in the inRaster list correspond to the 
 raster names, e.g. bio3.tif and bio6.tif.
 ```python
 inRasters = ['bio3', 'bio6']
-rsValues = spatiopy.getValuesAtPoint('.', inRasters, filteredPoints, 'x', 'y')
+rsValues = chorospy.getValuesAtPoint('.', inRasters, filteredPoints, 'x', 'y')
 rsValues.to_csv('rsValues.csv', index=False)
 ```
 
 The function below extracts all values of rasters and provides the centroid of each cell.
 ```python
 inRasters = ['bio3', 'bio6']
-rsValues = spatiopy.getRasterValues('.', inRasters)
+rsValues = chorospy.getRasterValues('.', inRasters)
 rsValues.to_csv('rsValues.csv', index=False)
 ```
 
@@ -66,18 +71,18 @@ given as features (geojson file) and the cells of the raster file that are cover
 assigned a nan value. The function returns an array that is subsequently saved as a new raster.
 ```python
 #first, let's create a raster that covers the specified extent at the specified resolution (0.00833333 )
-spatiopy.createRaster('cells.tif', [10, 55, 20, 60], 0.0833333)
+chorospy.createRaster('cells.tif', [10, 55, 20, 60], 0.0833333)
 #then run the function
 filteredArray = filterByCoverage('output.json', 'cells.tif', 50)
 #and finally export the array to a raster file. 
-spatiopy.array2raster('cellsFiltered.tif', 'cells.tif', filteredArray, -9999, 'float32')
+chorospy.array2raster('cellsFiltered.tif', 'cells.tif', filteredArray, -9999, 'float32')
 ```
 
 ### Create raster of species richness / occurrence density
 Given a list of species and their occurrences, one can create a species richness map at the desirable resolution. The following function
-takes a data frame with species occurrences and a vector file defining the extent of the map, and creates a raster file whose cell values
+takes a data frame with species occurrences and a vector file defining the extent and boarders of the map, and creates a raster file whose cell values
 represent the number of species in the respective cell. Only the occurrences that fall within the extent of the vector file will be considered.
-Occurrences that fall outside the polygones (the sea in our example) will be printed in the screen.
+Occurrences that fall outside the boarders (the coastline in our example) will be printed in the screen.
 ```python
 #first, let's create a pseudo data set using 10000 random species occurrences for 10 species. In this case the center of diversity is located at 15N, 60E somewhere in Sweden
 import random
@@ -93,12 +98,12 @@ DF = pandas.DataFrame()
 for species in sp.species.unique():
     df = sp[sp.species == species]
     df.reset_index(drop = True, inplace = True)
-    df1, rem = spatiopy.disaggregate(df, 'species', 'x', 'y', 0.08333333)
+    df1, rem = chorospy.disaggregate(df, 'species', 'x', 'y', 0.08333333)
     DF = pandas.concat([DF, df1])
 DF.reset_index(drop = True, inplace = True)
 
 #now let's create the raster ('test.tif'). The last argument is the no data value
-spatiopy.makeDensityRaster(DF, 'sweden.json', 0.08333333, 'test.tif', -9999)
+chorospy.makeDensityRaster(DF, 'sweden.json', 0.08333333, 'test.tif', -9999)
 ```
 
 Note: The same function  can be used to create an occurrence density map (e.g. for a single species) without disaggregating the occurrences.
