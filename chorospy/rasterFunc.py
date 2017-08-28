@@ -1,6 +1,7 @@
 from osgeo import osr,ogr,gdal
 import pandas
 import numpy
+import os
 
 def getValuesAtPoint(indir, rasterfileList, pos, Lon, Lat):
     #gt(2) and gt(4) coefficients are zero, and the gt(1) is pixel width, and gt(5) is pixel height.
@@ -105,8 +106,8 @@ def raster2array(rasterfn):
     return [array, nodata, extent, inproj, pixelSizeXY]
 
 # create a reference raster with random values    
-def createRaster(outRas, extCells, pixelSize, dataType = "float32"):
-    NP2GDAL_CONVERSION = { "uint8": 1, "int8": 1, "uint16": 2, "int16": 3, 
+def createRaster(outRas, extCells, pixelSize, dataType = "float32", noData = -9999, inVector = None):
+    NP2GDAL_CONVERSION = { "uint8": 1, "uint16": 2, "int16": 3, 
                           "uint32": 4, "int32": 5, "float32": 6, "float64": 7,
                           "complex64": 10, "complex128": 11,
                          }
@@ -117,20 +118,38 @@ def createRaster(outRas, extCells, pixelSize, dataType = "float32"):
 
     targetRas = gdal.GetDriverByName('GTiff').Create(outRas, xRes, yRes, 1, NP2GDAL_CONVERSION[dataType])
     targetRas.SetGeoTransform((extCells[0], pixelSize, 0, extCells[3], 0, -pixelSize))
-    
-    g = numpy.zeros((yRes,xRes), eval('numpy.{}'.format(dataType)))
-    
+    band = targetRas.GetRasterBand(1)
+    band.SetNoDataValue(noData)
+
+    if inVector != None:
+        srcVector = ogr.Open(inVector)
+        srcLayer = srcVector.GetLayer()
+        srs = srcLayer.GetSpatialRef()
+        # if the layer is not wgs84
+        if srs.GetAttrValue("AUTHORITY", 1) != '4326':
+            print('Layer projection should be WGS84!')
+            os.remove(outRas)
+            return
+
+        # Rasterize clips the raster band
+        gdal.RasterizeLayer(targetRas, [1], srcLayer, None, None, [0], ['ALL_TOUCHED=TRUE'])
+
+        g = band.ReadAsArray()
+        print(g)
+
+    else:
+        g = numpy.zeros((yRes,xRes), eval('numpy.{}'.format(dataType)))
+
+    #populate matrix with random numbers from [0,1]
     for i in range(yRes):
         for j in range(xRes):
-            g[i,j] = numpy.random.random_sample()
+            if g[i,j] != noData:
+                g[i,j] = numpy.random.random_sample()
 
+    band.WriteArray(g)
     targetRasSRS = osr.SpatialReference()
     targetRasSRS.ImportFromEPSG(4326)
     targetRas.SetProjection(targetRasSRS.ExportToWkt())
-
-    band = targetRas.GetRasterBand(1)
-    band.SetNoDataValue(-9999)
-    band.WriteArray(g)
     band.FlushCache()
 
 #function to filter raster cells based on the coverage by some vector features

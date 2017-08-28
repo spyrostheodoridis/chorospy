@@ -70,10 +70,11 @@ by some natural features (e.g. water). The function below modifies a raster file
 given as features (geojson file) and the cells of the raster file that are covered by more than 50% (arbitrary number) of water are
 assigned a nan value. The function returns an array that is subsequently saved as a new raster.
 ```python
-#first, let's create a raster that covers the specified extent at the specified resolution (0.00833333 )
-chorospy.createRaster('cells.tif', [10, 55, 20, 60], 0.0833333)
+#first, let's create a raster that covers the specified extent at the specified resolution (0.00833333). By default the cells of the rasters are random numbers in [0,1].
+#if the inVector optional argument is defined (e.g. inVector = 'test.shp'), the raster will be clipped by the features of the input vector file.
+chorospy.createRaster('cells.tif', [10, 55, 20, 60], 0.0833333, inVector = None)
 #then run the function
-filteredArray = filterByCoverage('output.json', 'cells.tif', 50)
+filteredArray = chorospy.filterByCoverage('output.json', 'cells.tif', 50)
 #and finally export the array to a raster file. 
 chorospy.array2raster('cellsFiltered.tif', 'cells.tif', filteredArray, -9999, 'float32')
 ```

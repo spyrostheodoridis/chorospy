@@ -2,14 +2,14 @@ from osgeo import gdal, ogr, osr
 import os
 import pandas
 
-def makeDensityRaster(speciesOcc, inLayer, pixelSize, outRas, noData):
-    srcVector = ogr.Open(inLayer)
+def makeDensityRaster(speciesOcc, inVector, pixelSize, outRas, noData):
+    srcVector = ogr.Open(inVector)
     srcLayer = srcVector.GetLayer()
     srs = srcLayer.GetSpatialRef()
     # if the layer is not wgs84
     if srs.GetAttrValue("AUTHORITY", 1) != '4326':
         print('Layer projection should be WGS84!')
-        exit()
+        return
 
     xMin, xMax, yMin, yMax = srcLayer.GetExtent()
 
@@ -21,7 +21,7 @@ def makeDensityRaster(speciesOcc, inLayer, pixelSize, outRas, noData):
     band = targetRas.GetRasterBand(1)
     band.SetNoDataValue(noData)
 
-    # Rasterize, modifies the raster band
+    # Rasterize clips the raster band
     gdal.RasterizeLayer(targetRas, [1], srcLayer, None, None, [0], ['ALL_TOUCHED=TRUE'])
     #os.remove(outRas)
     g = band.ReadAsArray()
