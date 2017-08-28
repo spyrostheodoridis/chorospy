@@ -26,7 +26,7 @@ inPoints = [[[0, 10],[0, 20], [10,20]],
             [[30,40],[30, 45],[35, 30]]]
 chorospy.pointToGeo(inProj = 4326, inPoints = inPoints, outFile = 'test', fields = {'id': ['geom_1','geom_2']}, buffer = True)
 ```
-if both the buffer and the convexHull arguments are set to True the function will create a convex hull of the buffer zones.
+If both the buffer and the convexHull arguments are set to True the function will create a convex hull of the buffer zones.
 ```python
 chorospy.pointToGeo(inProj = 4326, inPoints = inPoints, outFile = 'test', fields = {'id': ['geom_1','geom_2']}, buffer = True, convexHull = True)
 ```
