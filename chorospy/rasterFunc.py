@@ -3,7 +3,7 @@ import pandas
 import numpy
 import os
 
-def getValuesAtPoint(indir, rasterfileList, pos, Lon, Lat):
+def getValuesAtPoint(indir, rasterfileList, pos, lon, lat):
     #gt(2) and gt(4) coefficients are zero, and the gt(1) is pixel width, and gt(5) is pixel height.
     #The (gt(0),gt(3)) position is the top left corner of the top left pixel of the raster.
     for i, rs in enumerate(rasterfileList):
@@ -11,23 +11,25 @@ def getValuesAtPoint(indir, rasterfileList, pos, Lon, Lat):
         presValues = []
         gdata = gdal.Open('{}/{}.tif'.format(indir,rs))
         gt = gdata.GetGeoTransform()
+        band = gdata.GetRasterBand(1)
+        nodata = band.GetNoDataValue()
 
         x0, y0 , w , h = gt[0], gt[3], gt[1], gt[5]
 
-        data = gdata.ReadAsArray().astype(numpy.float)
+        data = band.ReadAsArray().astype(numpy.float)
         #free memory
-        gdata = None
+        del gdata
         
         if i == 0:
             #iterate through the points
             for p in pos.iterrows():
-                x = int((p[1]['x'] - x0)/w)
+                x = int((p[1][lon] - x0)/w)
                 Xc = x0 + x*w + w/2 #the cell center x
-                y = int((p[1]['y'] - y0)/h)
+                y = int((p[1][lat] - y0)/h)
                 Yc = y0 + y*h + h/2 #the cell center y
                 try:
-                    if data[y,x] != -9999.0:
-                        presVAL = [p[1]['x'],p[1]['y'], '{:.6f}'.format(Xc), '{:.6f}'.format(Yc), data[y,x]]
+                    if data[y,x] != nodata:
+                        presVAL = [p[1][lon],p[1][lat], '{:.6f}'.format(Xc), '{:.6f}'.format(Yc), data[y,x]]
                         presValues.append(presVAL)
                 except:
                     pass
@@ -35,20 +37,20 @@ def getValuesAtPoint(indir, rasterfileList, pos, Lon, Lat):
         else:
             #iterate through the points
             for p in pos.iterrows():
-                x = int((p[1]['x'] - x0)/w)
-                y = int((p[1]['y'] - y0)/h)
+                x = int((p[1][lon] - x0)/w)
+                y = int((p[1][lat] - y0)/h)
                 try:
-                    if data[y,x] != -9999.0:
+                    if data[y,x] != nodata:
                         presValues.append(data[y,x])
                 except:
                     pass
             df[rs] = pandas.Series(presValues)
-
+    del data, band
     return df
 
 
 #### function to get all pixel center coordinates and corresponding values from rasters
-def getRasterValues(indir, rasterfileList):
+def getRasterValues(indir, rasterfileList, skipNoData = True):
     
     for i, rs in enumerate(rasterfileList):
         
@@ -56,7 +58,9 @@ def getRasterValues(indir, rasterfileList):
             vList = []
             gdata = gdal.Open('{}/{}.tif'.format(indir,rs))
             gt = gdata.GetGeoTransform()
-            data = gdata.ReadAsArray().astype(numpy.float)
+            band = gdata.GetRasterBand(1)
+            nodata = band.GetNoDataValue()
+            data = band.ReadAsArray().astype(numpy.float)
             #free memory
             del gdata
 
@@ -65,22 +69,36 @@ def getRasterValues(indir, rasterfileList):
             for r, row in enumerate(data):
                 x = 0
                 for c, column in enumerate(row):
-                    x = x0 + c*w + w/2
-                    y = y0 + r*h + h/2
-
-                    vList.append(['{:.6f}'.format(x),'{:.6f}'.format(y),column])
+                    if skipNoData == True:
+                        if column == nodata:
+                            pass
+                        else:
+                            x = x0 + c*w + w/2
+                            y = y0 + r*h + h/2
+                            vList.append(['{:.6f}'.format(x),'{:.6f}'.format(y),column])
+                    elif skipNoData == False:
+                        x = x0 + c*w + w/2
+                        y = y0 + r*h + h/2
+                        vList.append(['{:.6f}'.format(x),'{:.6f}'.format(y),column])
+                        
             df = pandas.DataFrame(vList, columns=['Xc', 'Yc', rs])
             
         else:
             gdata = gdal.Open('{}/{}.tif'.format(indir,rs))
             gt = gdata.GetGeoTransform()
-            data = gdata.ReadAsArray().astype(numpy.float)
+            band = gdata.GetRasterBand(1)
+            nodata = band.GetNoDataValue()
+            data = band.ReadAsArray().astype(numpy.float)
             #free memory
-            gdata = None
-            vList = [c for r in data for c in r]
+            del gdata
+            if skipNoData == True: 
+                vList = [c for r in data for c in r if c != nodata]
+            elif skipNoData == False:
+                vList = [c for r in data for c in r]
+                
             df[rs] = pandas.Series(vList)
     
-    del data       
+    del data, band       
     return(df)
 
 
@@ -106,16 +124,18 @@ def raster2array(rasterfn):
     return [array, nodata, extent, inproj, pixelSizeXY]
 
 # create a reference raster with random values    
-def createRaster(outRas, extCells, pixelSize, dataType = "float32", noData = -9999, inVector = None):
+def createRaster(outRas, extCells, pixelSize, cellValues = 'lat', dataType = "float32", noData = -9999, inVector = None):
     NP2GDAL_CONVERSION = { "uint8": 1, "uint16": 2, "int16": 3, 
                           "uint32": 4, "int32": 5, "float32": 6, "float64": 7,
                           "complex64": 10, "complex128": 11,
                          }
-    
+    if os.path.exists(outRas):
+        print('Raster file already excists!')
+        return
     # Create the destination data source        
     xRes = int(numpy.ceil((extCells[2] - extCells[0]) / pixelSize))
     yRes = int(numpy.ceil((extCells[3] - extCells[1]) / pixelSize))
-
+    
     targetRas = gdal.GetDriverByName('GTiff').Create(outRas, xRes, yRes, 1, NP2GDAL_CONVERSION[dataType])
     targetRas.SetGeoTransform((extCells[0], pixelSize, 0, extCells[3], 0, -pixelSize))
     band = targetRas.GetRasterBand(1)
@@ -135,16 +155,20 @@ def createRaster(outRas, extCells, pixelSize, dataType = "float32", noData = -99
         gdal.RasterizeLayer(targetRas, [1], srcLayer, None, None, [0], ['ALL_TOUCHED=TRUE'])
 
         g = band.ReadAsArray()
-        print(g)
 
     else:
         g = numpy.zeros((yRes,xRes), eval('numpy.{}'.format(dataType)))
 
-    #populate matrix with random numbers from [0,1]
+    #populate matrix with random numbers
     for i in range(yRes):
         for j in range(xRes):
             if g[i,j] != noData:
-                g[i,j] = numpy.random.random_sample()
+                if cellValues == 'lat':
+                    g[i,j] = i
+                elif cellValues == 'lon':
+                    g[i,j] = j
+                elif cellValues == 'random':
+                    g[i,j] = numpy.random.randint(50)
 
     band.WriteArray(g)
     targetRasSRS = osr.SpatialReference()
