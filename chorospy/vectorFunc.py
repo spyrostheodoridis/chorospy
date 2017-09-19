@@ -4,6 +4,25 @@ import pandas
 import random
 import math
 
+# for higher accuracy the functions below define a UTM projection based on the lon lat of a point, they are used in the pointToGeo function
+def utmGetZone(longitude):
+    return (int(1+(longitude+180.0)/6.0))
+
+def utmIsNorthern(latitude):
+    if (latitude < 0.0):
+        return 0;
+    else:
+        return 1;
+
+def makeUtmCS(lon, lat):
+    utmZone = utmGetZone(lon)
+    isNorthern = utmIsNorthern(lat)
+    # set utm coordinate system
+    utmCs = osr.SpatialReference()
+    utmCs.SetWellKnownGeogCS('WGS84')
+    utmCs.SetUTM(utmZone,isNorthern)
+    return utmCs
+
 #########################################
 # function to produce polygons from points
 # inPoints is a list of lists e.g. [[[x1,y1], [x2,y2]], [[x3,y3], [x4,y4]]]
@@ -13,11 +32,7 @@ def pointToGeo(inProj, inPoints, outFile, fields, buffer = False, bufferZone = 5
     #define projections for the transformation
     inSpatialRef = osr.SpatialReference()
     inSpatialRef.ImportFromEPSG(inProj)
-    #the points will be temporarily converted to web mercator that uses meters for units (the buffer is expressed in meters)
-    outSpatialRef = osr.SpatialReference()
-    outSpatialRef.ImportFromEPSG(3857) #Web Mercator
-    coordTransform = osr.CoordinateTransformation(inSpatialRef, outSpatialRef)
-
+    
     #hierarchy of geo file creation: Driver -> Datasource -> Layer -> Feature -> Geometry ->Polygone
     if outFormat == 'json':
         driver = ogr.GetDriverByName('GeoJSON')
@@ -49,25 +64,28 @@ def pointToGeo(inProj, inPoints, outFile, fields, buffer = False, bufferZone = 5
             #create multipolygone to store buffer zones
             outPoly = ogr.Geometry(ogr.wkbMultiPolygon)
             for point in feat:
+                coordTransform = osr.CoordinateTransformation(inSpatialRef, makeUtmCS(point[0], point[1])) # transform to UTM
                 gps_point = ogr.Geometry(ogr.wkbPoint)
                 gps_point.AddPoint(point[0],point[1])
                 gps_point.Transform(coordTransform)
                 buffPoint = gps_point.Buffer(bufferZone)
+                coordTransformReverse = osr.CoordinateTransformation(makeUtmCS(point[0], point[1]), inSpatialRef) # back to WGS84
+                buffPoint.Transform(coordTransformReverse)
                 outPoly.AddGeometry(buffPoint)
             
             #join overlapping polygones
             outPoly = outPoly.UnionCascaded()
-            
             if convexHull == True:
                 # Calculate convex hull
                 outPoly = outPoly.ConvexHull()
 
-            #reproject back to WGS84
-            FinTransform = osr.CoordinateTransformation(outSpatialRef, inSpatialRef)
-            outPoly.Transform(FinTransform)
             # geometry in feature
             feature.SetGeometry(outPoly)
-                        
+            
+            for f in range(layerDefinition.GetFieldCount()):
+                proper = layerDefinition.GetFieldDefn(f).GetName()
+                feature.SetField(proper, fields[proper][featureIndex])
+            
             # feature in layer
             layer.CreateFeature(feature)
 
@@ -91,7 +109,6 @@ def pointToGeo(inProj, inPoints, outFile, fields, buffer = False, bufferZone = 5
             # feature in layer
             layer.CreateFeature(feature)
             
-
         #Clean
         outPoly.Destroy()
         feature.Destroy()
