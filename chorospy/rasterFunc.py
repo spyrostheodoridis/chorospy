@@ -2,8 +2,9 @@ from osgeo import osr,ogr,gdal
 import pandas
 import numpy
 import os
+import math
 
-def getValuesAtPoint(indir, rasterfileList, pos, lon, lat):
+def getValuesAtPoint(indir, rasterfileList, pos, lon, lat, sp):
     #gt(2) and gt(4) coefficients are zero, and the gt(1) is pixel width, and gt(5) is pixel height.
     #The (gt(0),gt(3)) position is the top left corner of the top left pixel of the raster.
     for i, rs in enumerate(rasterfileList):
@@ -29,11 +30,14 @@ def getValuesAtPoint(indir, rasterfileList, pos, lon, lat):
                 Yc = y0 + y*h + h/2 #the cell center y
                 try:
                     if data[y,x] != nodata:
-                        presVAL = [p[1][lon],p[1][lat], '{:.6f}'.format(Xc), '{:.6f}'.format(Yc), data[y,x]]
-                        presValues.append(presVAL)
+                        value = data[y,x]
+                    else:
+                        value = numpy.nan
+                    presVAL = [p[1][sp],p[1][lon],p[1][lat], '{:.6f}'.format(Xc), '{:.6f}'.format(Yc), value]
+                    presValues.append(presVAL)
                 except:
                     pass
-            df = pandas.DataFrame(presValues, columns=['x', 'y', 'Xc', 'Yc', rs])
+            df = pandas.DataFrame(presValues, columns=['sp', 'x', 'y', 'Xc', 'Yc', rs])
         else:
             #iterate through the points
             for p in pos.iterrows():
@@ -42,6 +46,8 @@ def getValuesAtPoint(indir, rasterfileList, pos, lon, lat):
                 try:
                     if data[y,x] != nodata:
                         presValues.append(data[y,x])
+                    else:
+                        presValues.append(numpy.nan)
                 except:
                     pass
             df[rs] = pandas.Series(presValues)
@@ -122,6 +128,47 @@ def raster2array(rasterfn):
     pixelSizeXY = [geoTransform[1], geoTransform[5]]
     del raster, band
     return [array, nodata, extent, inproj, pixelSizeXY]
+
+#clip a raster by vector
+def clipRaster(raster, newRaster, vector):
+    raster = gdal.Open(raster)
+    
+    vect = ogr.Open(vector)
+    lyr = vect.GetLayer()
+    ext = lyr.GetExtent()
+    
+    gTrans = raster.GetGeoTransform()
+    #get the x start of the left most pixel
+    xlP = int((ext[0] - gTrans[0])/gTrans[1])*gTrans[1] - abs(gTrans[0])
+    #get the x end of the right most pixel
+    xrP = math.ceil((ext[1] - gTrans[0])/gTrans[1])*gTrans[1] - abs(gTrans[0])
+    #get the y start of the upper most pixel
+    yuP = abs(gTrans[3]) - int((gTrans[3] - ext[3])/gTrans[5])*gTrans[5]
+    #get the y end of the lower most pixel
+    ylP = abs(gTrans[3]) - math.floor((gTrans[3] - ext[2])/gTrans[5])*gTrans[5]
+        
+    gdal.Translate('tmp.tif', raster, projWin = [xlP, yuP, xrP, ylP])
+    del raster
+    tRas = gdal.Open('tmp.tif')
+    band = tRas.GetRasterBand(1)
+    noDat = band.GetNoDataValue()
+    # store a copy before rasterize
+    fullRas = band.ReadAsArray().astype(numpy.float)
+    
+    gdal.RasterizeLayer(tRas, [1], lyr, None, None, [-9999], ['ALL_TOUCHED=TRUE']) # now tRas is modified
+    
+    finRas = tRas.GetRasterBand(1).ReadAsArray().astype(numpy.float)
+
+    for i, row in enumerate(finRas):
+        for j, col in enumerate(row):
+            if col == -9999.:
+                finRas[i, j] = fullRas[i, j]
+            else:
+                finRas[i, j] = noDat
+
+    array2raster(newRaster, 'tmp.tif', finRas, noDat, "float32")
+    os.remove('tmp.tif')
+    del fullRas, finRas, band, tRas
 
 # create a reference raster with random values    
 def createRaster(outRas, extCells, pixelSize, cellValues = 'lat', dataType = "float32", noData = -9999, inVector = None):

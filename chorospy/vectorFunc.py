@@ -31,7 +31,7 @@ def makeUtmCS(lon, lat):
 def pointToGeo(inProj, inPoints, outFile, fields, buffer = False, bufferZone = 50000, convexHull = False, outFormat = 'json'):
     #define projections for the transformation
     inSpatialRef = osr.SpatialReference()
-    inSpatialRef.ImportFromEPSG(inProj)
+    inSpatialRef.ImportFromEPSG(inProj) #datum of the points
     
     #hierarchy of geo file creation: Driver -> Datasource -> Layer -> Feature -> Geometry ->Polygone
     if outFormat == 'json':
