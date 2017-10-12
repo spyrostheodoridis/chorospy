@@ -1,6 +1,6 @@
 # chorospy
 
-The chorospy package contains a set a functions for creating and manipulating vector and raster data, common tasks in research fields like spatial ecology, biodiversity conservation etc.
+The chorospy (choros = space, place, location) package contains a set a functions for creating and manipulating vector and raster data, common tasks in research fields like spatial ecology, biodiversity conservation etc.
 
 ## Prerequisites
 The modules are written in Python 3 and are based on GDAL v2. It is preferred to run the modules in an isolated python environment (see https://docs.python.org/3/library/venv.html).
