@@ -8,26 +8,34 @@ def getValuesAtPoint(indir, rasterfileList, pos, lon, lat, sp):
     #gt(2) and gt(4) coefficients are zero, and the gt(1) is pixel width, and gt(5) is pixel height.
     #The (gt(0),gt(3)) position is the top left corner of the top left pixel of the raster.
     for i, rs in enumerate(rasterfileList):
-        
+        print('processing {}'.format(rs))
         presValues = []
         gdata = gdal.Open('{}/{}.tif'.format(indir,rs))
         gt = gdata.GetGeoTransform()
         band = gdata.GetRasterBand(1)
         nodata = band.GetNoDataValue()
 
-        x0, y0 , w , h = gt[0], gt[3], gt[1], gt[5]
+        x0, y0 , w , h = gt[0], gt[3], abs(gt[1]), abs(gt[5])
+        
+        xmin, xmax, ymin, ymax = min(pos['x']), max(pos['x']), min(pos['y']), max(pos['y'])
 
-        data = band.ReadAsArray().astype(numpy.float)
+        # Specify offset and rows and columns to read
+        xoff = int((xmin - x0)/w)
+        yoff = int((y0 - ymax)/h)
+        xcount = int(math.ceil((xmax - xmin)/w)+1)
+        ycount = int(math.ceil((ymax - ymin)/h)+1)
+
+        data = band.ReadAsArray(xoff, yoff, xcount, ycount).astype(numpy.float)
         #free memory
         del gdata
         
         if i == 0:
             #iterate through the points
             for p in pos.iterrows():
-                x = int((p[1][lon] - x0)/w)
-                Xc = x0 + x*w + w/2 #the cell center x
-                y = int((p[1][lat] - y0)/h)
-                Yc = y0 + y*h + h/2 #the cell center y
+                x = int((p[1][lon] - x0)/w) - xoff
+                Xc = x0 + int((p[1][lon] - x0)/w)*w + w/2 #the cell center x
+                y = int((y0 - p[1][lat])/h) - yoff
+                Yc = y0 - int((y0 - p[1][lat])/h)*h - h/2 #the cell center y
                 try:
                     if data[y,x] != nodata:
                         value = data[y,x]
@@ -41,8 +49,8 @@ def getValuesAtPoint(indir, rasterfileList, pos, lon, lat, sp):
         else:
             #iterate through the points
             for p in pos.iterrows():
-                x = int((p[1][lon] - x0)/w)
-                y = int((p[1][lat] - y0)/h)
+                x = int((p[1][lon] - x0)/w) - xoff
+                y = int((y0 - p[1][lat])/h) - yoff
                 try:
                     if data[y,x] != nodata:
                         presValues.append(data[y,x])
@@ -52,6 +60,7 @@ def getValuesAtPoint(indir, rasterfileList, pos, lon, lat, sp):
                     pass
             df[rs] = pandas.Series(presValues)
     del data, band
+    print('extracted values written in dataframe')
     return df
 
 
