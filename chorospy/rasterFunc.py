@@ -17,7 +17,7 @@ def getValuesAtPoint(indir, rasterfileList, pos, lon, lat, sp):
 
         x0, y0 , w , h = gt[0], gt[3], abs(gt[1]), abs(gt[5])
         
-        xmin, xmax, ymin, ymax = min(pos['x']), max(pos['x']), min(pos['y']), max(pos['y'])
+        xmin, xmax, ymin, ymax = min(pos[lon]), max(pos[lon]), min(pos[lat]), max(pos[lat])
 
         # Specify offset and rows and columns to read
         xoff = int((xmin - x0)/w)
