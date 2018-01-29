@@ -1,43 +1,38 @@
-import json
 from osgeo import gdal, osr, ogr
 import numpy
 import subprocess
+import re
 
-# Create a json file from a geotif to be used as input for ploting it as an image using javascript and canvas.
-# The json file includes the extent (in wgs84 coordinates), and the native resolution (width and height) of the raster file
-def transPoint(point, inproj, outproj):
-    sr_srs = osr.SpatialReference()
-    sr_srs.ImportFromEPSG(inproj)
-    dst_srs = osr.SpatialReference()
-    dst_srs.ImportFromEPSG(outproj)
+def rasterToJSON (infile, outfile):
+    #get projection of input file
+    inProj = subprocess.Popen(['gdalsrsinfo', infile, '-o', 'proj4'], stdout=subprocess.PIPE, encoding='utf8').stdout.read().strip().replace('\'','')
+    #get info of input file
+    inFo = subprocess.Popen(['gdalinfo', infile], stdout=subprocess.PIPE, encoding='utf8').stdout.read().split('\n')
+    coordDic = {}
 
-    coordTransform = osr.CoordinateTransformation(sr_srs, dst_srs)
+    for i in ['Upper Left', 'Lower Left', 'Upper Right', 'Lower Right', 'Center']:
+        pp = [x for x in inFo if i in x]
+        PP = re.split(r'\(|\)', pp[0])[1].strip().replace(' ', '').split(',')
+        #transform to wgs84
+        p = subprocess.Popen(['gdaltransform', '-s_srs', inProj, '-t_srs', 'EPSG:4326'], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='utf8')
+        pointCoord = p.communicate('{} {}'.format(PP[0], PP[1]))[0].rstrip().split()
+        
+        try:
+            x, y = float(pointCoord[0]), float(pointCoord[1])
+            coordDic[i] = [x,y]
+        except:
+            coordDic[i] = []
 
-    gps_point = ogr.Geometry(ogr.wkbPoint)
-    gps_point.AddPoint(point[0], point[1])
-    gps_point.Transform(coordTransform)
-    x = float(gps_point.ExportToWkt().split()[1].split('(')[1])
-    y = float(gps_point.ExportToWkt().split()[2])
-    return [x,y]
+        
 
-
-def rasterToJSON (infile, outfile, outproj):
-    #reproject dataset to the desired projection
-    subprocess.call(['gdalwarp', '-t_srs', 'EPSG:{}'.format(outproj), infile, 'outReproj.tif', '-overwrite'])
-    projRas = gdal.Open('outReproj.tif')
+    inRas = gdal.Open(infile)
     
-    #get properties of new raster
-    nrows = projRas.RasterYSize
-    ncols = projRas.RasterXSize
-    band1 = projRas.GetRasterBand(1)
+    nrows = inRas.RasterYSize
+    ncols = inRas.RasterXSize
+    
+    band1 = inRas.GetRasterBand(1)
     nodata = band1.GetNoDataValue()
     gdata = band1.ReadAsArray()
-    x0, y0 = projRas.GetGeoTransform()[0], projRas.GetGeoTransform()[3]
-    cellX, cellY = projRas.GetGeoTransform()[1], projRas.GetGeoTransform()[5]
-    
-    #get corners
-    ulcorner, llcorner = [x0, y0], [x0, y0 + nrows*cellY]
-    urcorner, lrcorner =  [x0 + ncols*cellX, y0], [x0 + ncols*cellX, y0 + nrows*cellY]
     
     dataType = gdal.GetDataTypeName(band1.DataType)
     #convert to float
@@ -45,15 +40,29 @@ def rasterToJSON (infile, outfile, outproj):
         gdata = gdata.astype(numpy.float32, copy=False)
     # new nodata value
     gdata[gdata == nodata] = -9999
-    gdata = numpy.concatenate(gdata)
-    gdata = gdata.tolist()
+    gdata[numpy.isnan(gdata)]= -9999
+
+    #gdata = numpy.concatenate(gdata)
+    #gdata = gdata.tolist()
     #write to json
-    gdataJSON = {'upLeft': transPoint(ulcorner, outproj, 4326), 'loLeft': transPoint(llcorner, outproj, 4326),
-                 'upRight': transPoint(urcorner, outproj, 4326), 'loRight': transPoint(lrcorner, outproj, 4326),
-                 'projEPSG': outproj, 'width': ncols, 'height': nrows, 'data': gdata}
-
+    
     with open(outfile, 'w') as fp:
-        json.dump(gdataJSON, fp)
-
-    del gdata
-    subprocess.call(['rm', 'outReproj.tif'])
+        fp.write('{\n')
+        fp.write('"upLeft": {}'.format(coordDic['Upper Left']) + ',\n')
+        fp.write('"loLeft": {}'.format(coordDic['Lower Left']) + ',\n')
+        fp.write('"upRight": {}'.format(coordDic['Upper Right']) + ',\n')
+        fp.write('"loRight": {}'.format(coordDic['Lower Right']) + ',\n')
+        fp.write('"center": {}'.format(coordDic['Center']) + ',\n')
+        fp.write('"projEPSG": "{}"'.format(inProj) + ',\n')
+        fp.write('"width": {}'.format(ncols) + ',\n')
+        fp.write('"height": {}'.format(nrows) + ',\n')
+        fp.write('"data":'+ '\n')
+        for i, row in enumerate(gdata):
+            if i == 0:
+                fp.write('[{}'.format(row.tolist()))
+            else:
+                fp.write(',\n{}'.format(row.tolist()))
+        
+        fp.write(']\n}\n')           
+        #json.dump(gdataJSON, fp, indent=4)
+    fp.close()

@@ -28,7 +28,7 @@ def makeUtmCS(lon, lat):
 # inPoints is a list of lists e.g. [[[x1,y1], [x2,y2]], [[x3,y3], [x4,y4]]]
 # each list of points is saved as a seperate feauture in the final file
 #########################################
-def pointToGeo(inProj, inPoints, outFile, fields, buffer = False, bufferZone = 50000, convexHull = False, outFormat = 'json'):
+def pointToGeo(inProj, inPoints, outFile, layerName, fields, buffer = False, bufferZone = 50000, convexHull = False, outFormat = 'json'):
     #define projections for the transformation
     inSpatialRef = osr.SpatialReference()
     inSpatialRef.ImportFromEPSG(inProj) #datum of the points
@@ -46,7 +46,7 @@ def pointToGeo(inProj, inPoints, outFile, fields, buffer = False, bufferZone = 5
     shapeData = driver.CreateDataSource(outShape)
 
     #Create layer
-    layer = shapeData.CreateLayer('clipExtent', inSpatialRef, ogr.wkbMultiPolygon)
+    layer = shapeData.CreateLayer(layerName, inSpatialRef, ogr.wkbMultiPolygon)
     layerDefinition = layer.GetLayerDefn()
     #create fields/properties of features
     for prop in fields.keys():
