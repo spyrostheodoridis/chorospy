@@ -180,7 +180,12 @@ def clipRaster(raster, newRaster, vector):
     del fullRas, finRas, band, tRas
 
 # create a reference raster with random values    
-def createRaster(outRas, extCells, pixelSize, cellValues = 'lat', dataType = "float32", noData = -9999, inVector = None):
+# create a reference raster with random values    
+def createRaster(outRas, xmin, ymin, xmax, ymax, pixelSize, 
+                 proj = '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs', 
+                 cellValues = 'random', dataType = "float32", noData = -9999, 
+                 inVector = None, rasterizeOptions = ['ALL_TOUCHED=FALSE']):
+    
     NP2GDAL_CONVERSION = { "uint8": 1, "uint16": 2, "int16": 3, 
                           "uint32": 4, "int32": 5, "float32": 6, "float64": 7,
                           "complex64": 10, "complex128": 11,
@@ -189,33 +194,27 @@ def createRaster(outRas, extCells, pixelSize, cellValues = 'lat', dataType = "fl
         print('Raster file already excists!')
         return
     # Create the destination data source        
-    xRes = int(numpy.ceil((extCells[2] - extCells[0]) / pixelSize))
-    yRes = int(numpy.ceil((extCells[3] - extCells[1]) / pixelSize))
+    xRes = int(numpy.ceil((xmax - xmin) / pixelSize))
+    yRes = int(numpy.ceil((ymax - ymin) / pixelSize))
     
     targetRas = gdal.GetDriverByName('GTiff').Create(outRas, xRes, yRes, 1, NP2GDAL_CONVERSION[dataType])
-    targetRas.SetGeoTransform((extCells[0], pixelSize, 0, extCells[3], 0, -pixelSize))
+    targetRas.SetGeoTransform((xmin, pixelSize, 0, ymax, 0, -pixelSize))
     band = targetRas.GetRasterBand(1)
     band.SetNoDataValue(noData)
 
     if inVector != None:
         srcVector = ogr.Open(inVector)
         srcLayer = srcVector.GetLayer()
-        srs = srcLayer.GetSpatialRef()
-        # if the layer is not wgs84
-        if srs.GetAttrValue("AUTHORITY", 1) != '4326':
-            print('Layer projection should be WGS84!')
-            os.remove(outRas)
-            return
-
+        
         # Rasterize clips the raster band
-        gdal.RasterizeLayer(targetRas, [1], srcLayer, None, None, [0], ['ALL_TOUCHED=TRUE'])
+        gdal.RasterizeLayer(targetRas, [1], srcLayer, None, None, [0], rasterizeOptions)
 
         g = band.ReadAsArray()
 
     else:
         g = numpy.zeros((yRes,xRes), eval('numpy.{}'.format(dataType)))
 
-    #populate matrix with random numbers
+    #populate matrix with numbers
     for i in range(yRes):
         for j in range(xRes):
             if g[i,j] != noData:
@@ -224,13 +223,16 @@ def createRaster(outRas, extCells, pixelSize, cellValues = 'lat', dataType = "fl
                 elif cellValues == 'lon':
                     g[i,j] = j
                 elif cellValues == 'random':
-                    g[i,j] = numpy.random.randint(50)
+                    g[i,j] = numpy.random.randint(1000)
+                elif cellValues == 'index':
+                    g[i,j] = i*xRes + j
 
     band.WriteArray(g)
     targetRasSRS = osr.SpatialReference()
-    targetRasSRS.ImportFromEPSG(4326)
+    targetRasSRS.ImportFromProj4(proj)
     targetRas.SetProjection(targetRasSRS.ExportToWkt())
     band.FlushCache()
+    print('raster file created!')
 
 #function to filter raster cells based on the coverage by some vector features
 def filterByCoverage(vectorFile, rasterFile, covPerc):
