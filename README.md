@@ -69,7 +69,7 @@ Assessing biodiversity indexes usually requires the definition of a grid on whic
 The following function can create a raster file of any size and extent. The user can additionally define the projection and
 and a clip vector for the final raster. In the example, we create a raster file (refRaster.tif) with 350km cell resolution (i.e 122.5 square kilometers)
 at an equal area projection (mollweide) and at global extent. The cells have random values (cellValues = 'random') that range from 0 to 1000 (default).
-For the clipping we first reproject the natural earth land file at 10 m resolution and reprojected at Mollweide projection (ne_10m_land_Moll.shp).
+For the clipping, we first have to reproject the 10m natural earth land file at the Mollweide projection (ne_10m_land_Moll.shp).
 ```python
 chorospy.createRaster('refRaster.tif',
                       xmin = -17000702, ymin = -8972585.472, 
