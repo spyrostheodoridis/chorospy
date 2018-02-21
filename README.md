@@ -65,19 +65,25 @@ rsValues.to_csv('rsValues.csv', index=False)
 ```
 
 ### Create reference raster
-Assessing biodiversity indexes usually requires the definition of a grid on which spatial calculations will be conducted.
+Assessing the spatial aspects of biodiversity usually requires the definition of a grid on which spatial calculations will be conducted.
 The following function can create a raster file of any size and extent. The user can additionally define the projection and
-and a clip vector for the final raster. In the example, we create a raster file (refRaster.tif) with 350km cell resolution (i.e 122.5 square kilometers)
-at an equal area projection (mollweide) and at global extent. The cells have random values (cellValues = 'random') that range from 0 to 1000 (default).
-For the clipping, we first have to reproject the 10m natural earth land file at the Mollweide projection (ne_10m_land_Moll.shp).
+and a clip vector for the final raster. In this example, we create a raster file (refRaster.tif) with 350km cell resolution (i.e cell area is 122.5 square kilometers)
+at a cylindrical equal-area projection projection (Behrmann) and at global extent. The properties of this family of projections (i.e. north-south compression is precisely the reciprocal of east-west stretching)
+allow us to define a grid that consists of cells of equal area. The cells have random values (cellValues = 'random') that range from 0 to 1000 (default).
+For the clipping (inVector), we first have to reproject the 10m natural earth land file at the Behrmann projection (ne_10m_land_Behrmann.shp).
+```bash
+ogr2ogr -t_srs '+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs' ne_10m_land_Berhmann.shp ne_10m_land.shp
+```
+and then in python
 ```python
 chorospy.createRaster('refRaster.tif',
                       xmin = -17000702, ymin = -8972585.472, 
                       xmax = 17000702, ymax = 8771186,
                       pixelSize = 350000,
-                      proj = '+proj=moll +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=m no_defs',
+                      proj = '+proj=cea +lon_0=0 +lat_ts=30 +x_0=0 +y_0=0 +datum=WGS84 +ellps=WGS84 +units=m +no_defs',
                       cellValues = 'random',
-                      inVector = 'ne_10m_land_Moll.shp')
+                      inVector = 'ne_10m_land_Berhmann.shp',
+                      rasterizeOptions = ['ALL_TOUCHED=FALSE'])
 ```
 
 
