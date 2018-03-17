@@ -181,7 +181,7 @@ def clipRaster(raster, newRaster, vector):
 
 # create a reference raster with random values    
 # create a reference raster with random values    
-def createRaster(outRas, xmin, ymin, xmax, ymax, pixelSize, 
+def createRaster(outRas, xmin, ymin, xmax, ymax, pixelSize, coordinates = 'spherical', 
                  proj = '+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs', 
                  cellValues = 'random', dataType = "float32", noData = -9999, 
                  inVector = None, rasterizeOptions = ['ALL_TOUCHED=FALSE']):
@@ -193,9 +193,27 @@ def createRaster(outRas, xmin, ymin, xmax, ymax, pixelSize,
     if os.path.exists(outRas):
         print('Raster file already excists!')
         return
+    
+    if coordinates == 'spherical':
+        # create coordinate transformation
+        inRef = osr.SpatialReference()
+        inRef.ImportFromProj4('+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0')
+        outRef = osr.SpatialReference()
+        outRef.ImportFromProj4(proj)
+
+        coordTransform = osr.CoordinateTransformation(inRef, outRef)
+
+        LLpoint = ogr.Geometry(ogr.wkbPoint)
+        LLpoint.AddPoint(float(xmin), float(ymin))
+        LLpoint.Transform(coordTransform)
+        URpoint = ogr.Geometry(ogr.wkbPoint)
+        URpoint.AddPoint(float(xmax), float(ymax))
+        URpoint.Transform(coordTransform)
+        xmin, ymin, xmax, ymax = LLpoint.GetX(), LLpoint.GetY(), URpoint.GetX(), URpoint.GetY(),
+        
     # Create the destination data source        
-    xRes = int(numpy.ceil((xmax - xmin) / pixelSize))
-    yRes = int(numpy.ceil((ymax - ymin) / pixelSize))
+    xRes = int(numpy.int((xmax - xmin) / pixelSize))
+    yRes = int(numpy.int((ymax - ymin) / pixelSize))
     
     targetRas = gdal.GetDriverByName('GTiff').Create(outRas, xRes, yRes, 1, NP2GDAL_CONVERSION[dataType])
     targetRas.SetGeoTransform((xmin, pixelSize, 0, ymax, 0, -pixelSize))
