@@ -45,6 +45,19 @@ inPoints = pandas.read_csv('myPointFile.csv')
 filteredPoints, removedPoints = chorospy.disaggregate(inPoints, 'x', 'y', 0.008333333333333)
 ```
 
+### Create polygon grid (fishnet)
+Creating a regularly-spaced grid (fishnet) is a common task in physical geography. The following function creates a vector file
+with polygones representing the cells of the grid. We can define the spatial extent of the grid, the cell edge size and the projection (in proj4 format).
+Additionally, we can let the function readjust the cell dimensions so that the grid fits precisely to the defined extent. The function supports two vector formats,
+json and shp. For this example, we create a grid of approximately 500 by 500 km cells at the Lambert cylindrical equal-area projection. The four numbers after the 
+file name define xmin, ymin, xmax, ymax. 
+```python
+proj4 = '+proj=laea +lat_0=45.5 +lon_0=-114.125 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=km +no_defs'
+
+chorospy.createFishNet('lambert.json', -17367.500000, -7332.944361, 17367.499600, 7332.944359, 500, 500, proj4, adjustGrid=True)
+```
+
+
 ### Get raster values
 The function below extracts values of rasters for the provided coordinates. The function takes a set of rasters and a set of points 
 (i.e. a pandas dataframe with the point coordinates) as inputs and returns a new pandas data frame with the same point coordinates

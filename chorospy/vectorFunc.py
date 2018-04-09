@@ -26,7 +26,7 @@ def makeUtmCS(lon, lat):
 #########################################
 # function to produce polygons from points
 # inPoints is a list of lists e.g. [[[x1,y1], [x2,y2]], [[x3,y3], [x4,y4]]]
-# each list of points is saved as a seperate feauture in the final file
+# each list of points is saved as a separate feature in the final file
 #########################################
 def pointToGeo(inProj, inPoints, outFile, layerName, fields, buffer = False, bufferZone = 50000, convexHull = False, outFormat = 'json'):
     #define projections for the transformation
@@ -116,7 +116,7 @@ def pointToGeo(inProj, inPoints, outFile, layerName, fields, buffer = False, buf
         
     print('Geometry file created!')
         
-#function for disaggregating occurence points
+#function for disaggregating occurrence points
 # distance in degrees
 # 100m = 0.001189387868; 1km = 0.008333333333333; 10km = 0.08333333333333
 def disaggregate(df,Lon, Lat, dist): 
@@ -147,3 +147,86 @@ def disaggregate(df,Lon, Lat, dist):
         
     print('Occurences removed: %s, Occurences kept: %s' %(excl, kept))
     return(finalDF, removedDF)
+
+
+#function for creating fishnets with centroids
+def createFishNet(outFile, xmin, ymin, xmax, ymax, gridHeight, gridWidth, projection, adjustGrid = True):
+    # define projection
+    out_srs = osr.SpatialReference()
+    out_srs.ImportFromProj4(projection)
+
+    # convert to float
+    xmin = float(xmin)
+    xmax = float(xmax)
+    ymin = float(ymin)
+    ymax = float(ymax)
+    gridWidth = float(gridWidth)
+    gridHeight = float(gridHeight)
+
+    # n of rows
+    rows = int((ymax-ymin)/gridHeight)
+    # n of columns
+    cols = int((xmax-xmin)/gridWidth)
+    #readjust width, height
+    if adjustGrid == True:
+        gridWidth = (xmax-xmin) / cols
+        gridHeight = (ymax-ymin) / rows
+
+    # initiate first cell
+    cellLeft = xmin
+    cellRight = xmin + gridWidth
+    cellTop = ymax
+    cellBottom = ymax - gridHeight
+
+    # create output file
+    if outFile.split('.')[1] == 'json':
+        outDriver = ogr.GetDriverByName('GeoJSON')
+    if outFile.split('.')[1] == 'shp':
+        outDriver = ogr.GetDriverByName('ESRI Shapefile')
+    if os.path.exists(outFile):
+        os.remove(outFile)
+    outDataSource = outDriver.CreateDataSource(outFile)
+    outLayer = outDataSource.CreateLayer(outFile, srs = out_srs, geom_type=ogr.wkbPolygon )
+    #create field in the features' properties 
+    outLayer.CreateField(ogr.FieldDefn('Centroid', ogr.OFTString))
+    featureDefn = outLayer.GetLayerDefn()
+
+    # create grid cells
+    for r in range(rows):
+        
+        for c in range(cols):
+            # create geometry
+            LRing = ogr.Geometry(ogr.wkbLinearRing)
+            LRing.AddPoint(cellLeft, cellTop)
+            LRing.AddPoint(cellRight, cellTop)
+            LRing.AddPoint(cellRight, cellBottom)
+            LRing.AddPoint(cellLeft, cellBottom)
+            LRing.AddPoint(cellLeft, cellTop)
+            poly = ogr.Geometry(ogr.wkbPolygon)
+            poly.AddGeometry(LRing)
+            # calculate centroid
+            x = str(poly.Centroid()).split()[1].replace('(', '')
+            y = str(poly.Centroid()).split()[2].replace(')', '')
+            # add new geom to layer
+            outFeature = ogr.Feature(featureDefn)
+            outFeature.SetGeometry(poly)
+            outFeature.SetField('Centroid', '[' + str(x) + ',' + str(y) + ']')
+            outLayer.CreateFeature(outFeature)
+            outFeature.Destroy
+            
+            cellLeft += gridWidth
+            cellRight += gridWidth
+            
+        # define new row start
+        cellLeft = xmin
+        cellRight = xmin + gridWidth
+        cellTop -= gridHeight
+        cellBottom -= gridHeight
+                                
+    # Close DataSources
+    outDataSource.Destroy()
+
+
+
+
+
