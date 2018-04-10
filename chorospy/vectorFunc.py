@@ -150,26 +150,24 @@ def disaggregate(df,Lon, Lat, dist):
 
 
 #function for creating fishnets with centroids
-def createFishNet(outFile, xmin, ymin, xmax, ymax, gridHeight, gridWidth, projection, adjustGrid = True):
+#function for creating fishnets with centroids
+def createFishNet(outFile, xmin, ymin, xmax, ymax, gridHeight, gridWidth, projection, adjustGrid = True, spherical = False):
     # define projection
     out_srs = osr.SpatialReference()
     out_srs.ImportFromProj4(projection)
 
-    # create coordinate transformation
-    inSpatialRef = osr.SpatialReference()
-    inSpatialRef.ImportFromProj4(projection)
-    outSpatialRef = osr.SpatialReference()
-    outSpatialRef.ImportFromProj4('+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0')
-    coordTransform = osr.CoordinateTransformation(inSpatialRef, outSpatialRef)
+    # create coordinate transformation to WGS84
+    sphericalSpatialRef = osr.SpatialReference()
+    sphericalSpatialRef.ImportFromProj4('+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0')
+    coordTransform = osr.CoordinateTransformation(out_srs, sphericalSpatialRef)
 
-    # convert to float
+    # convert numbers to float
     xmin = float(xmin)
     xmax = float(xmax)
     ymin = float(ymin)
     ymax = float(ymax)
     gridWidth = float(gridWidth)
     gridHeight = float(gridHeight)
-
     # n of rows
     rows = int((ymax-ymin)/gridHeight)
     # n of columns
@@ -178,14 +176,9 @@ def createFishNet(outFile, xmin, ymin, xmax, ymax, gridHeight, gridWidth, projec
     if adjustGrid == True:
         gridWidth = (xmax-xmin) / cols
         gridHeight = (ymax-ymin) / rows
+        
 
-    # initiate first cell
-    cellLeft = xmin
-    cellRight = xmin + gridWidth
-    cellTop = ymax
-    cellBottom = ymax - gridHeight
-
-    # create output file
+    ####### create output file #######
     if outFile.split('.')[1] == 'json':
         outDriver = ogr.GetDriverByName('GeoJSON')
     if outFile.split('.')[1] == 'shp':
@@ -193,13 +186,25 @@ def createFishNet(outFile, xmin, ymin, xmax, ymax, gridHeight, gridWidth, projec
     if os.path.exists(outFile):
         os.remove(outFile)
     outDataSource = outDriver.CreateDataSource(outFile)
-    outLayer = outDataSource.CreateLayer(outFile, srs = out_srs, geom_type=ogr.wkbPolygon )
-    #create field in the features' properties 
-    outLayer.CreateField(ogr.FieldDefn('CentroidProjected', ogr.OFTString))
-    outLayer.CreateField(ogr.FieldDefn('CentroidSpherical', ogr.OFTString))
+    if spherical == False:
+        outLayer = outDataSource.CreateLayer(outFile, srs = out_srs, geom_type=ogr.wkbPolygon)
+    elif spherical == True:
+        outLayer = outDataSource.CreateLayer(outFile, srs = sphericalSpatialRef, geom_type=ogr.wkbPolygon)
+    
+    #create field in the features' properties
+    outLayer.CreateField(ogr.FieldDefn('Original Centroid', ogr.OFTString))
+    if spherical == True:
+        outLayer.CreateField(ogr.FieldDefn('Spherical Centroid', ogr.OFTString))
+    #create layer definition
     featureDefn = outLayer.GetLayerDefn()
-
-    # create grid cells
+    
+    ###### create grid cells #######
+    # initiate first cell
+    cellLeft = xmin
+    cellRight = xmin + gridWidth
+    cellTop = ymax
+    cellBottom = ymax - gridHeight
+    
     for r in range(rows):
         
         for c in range(cols):
@@ -212,17 +217,23 @@ def createFishNet(outFile, xmin, ymin, xmax, ymax, gridHeight, gridWidth, projec
             LRing.AddPoint(cellLeft, cellTop)
             poly = ogr.Geometry(ogr.wkbPolygon)
             poly.AddGeometry(LRing)
-            # calculate centroid
-            x = str(poly.Centroid().GetX())
-            y = str(poly.Centroid().GetY())
-            # convert to spherical coordinates
-            p = poly.Centroid()
-            p.Transform(coordTransform)
+            # calculate original centroid
+            xOrigin = str(poly.Centroid().GetX())
+            yOrigin = str(poly.Centroid().GetY())
+            #reproject poly
+            if spherical == True:
+                poly.Transform(coordTransform)
+                # calculate spherical centroid
+                x = str(poly.Centroid().GetX())
+                y = str(poly.Centroid().GetY())
+            
             # add new geom to layer
             outFeature = ogr.Feature(featureDefn)
             outFeature.SetGeometry(poly)
-            outFeature.SetField('CentroidProjected', '[' + str(x) + ',' + str(y) + ']')
-            outFeature.SetField('CentroidSpherical', '[' + str(p.GetX()) + ',' + str(p.GetY()) + ']')
+            # add centroid property
+            outFeature.SetField('Original Centroid', '[' + str(xOrigin) + ',' + str(yOrigin) + ']')
+            if spherical == True:
+                outFeature.SetField('Spherical Centroid', '[' + str(x) + ',' + str(y) + ']')
 
             outLayer.CreateFeature(outFeature)
             outFeature.Destroy
