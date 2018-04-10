@@ -155,6 +155,13 @@ def createFishNet(outFile, xmin, ymin, xmax, ymax, gridHeight, gridWidth, projec
     out_srs = osr.SpatialReference()
     out_srs.ImportFromProj4(projection)
 
+    # create coordinate transformation
+    inSpatialRef = osr.SpatialReference()
+    inSpatialRef.ImportFromProj4(projection)
+    outSpatialRef = osr.SpatialReference()
+    outSpatialRef.ImportFromProj4('+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0')
+    coordTransform = osr.CoordinateTransformation(inSpatialRef, outSpatialRef)
+
     # convert to float
     xmin = float(xmin)
     xmax = float(xmax)
@@ -188,7 +195,8 @@ def createFishNet(outFile, xmin, ymin, xmax, ymax, gridHeight, gridWidth, projec
     outDataSource = outDriver.CreateDataSource(outFile)
     outLayer = outDataSource.CreateLayer(outFile, srs = out_srs, geom_type=ogr.wkbPolygon )
     #create field in the features' properties 
-    outLayer.CreateField(ogr.FieldDefn('Centroid', ogr.OFTString))
+    outLayer.CreateField(ogr.FieldDefn('CentroidProjected', ogr.OFTString))
+    outLayer.CreateField(ogr.FieldDefn('CentroidSpherical', ogr.OFTString))
     featureDefn = outLayer.GetLayerDefn()
 
     # create grid cells
@@ -205,12 +213,17 @@ def createFishNet(outFile, xmin, ymin, xmax, ymax, gridHeight, gridWidth, projec
             poly = ogr.Geometry(ogr.wkbPolygon)
             poly.AddGeometry(LRing)
             # calculate centroid
-            x = str(poly.Centroid()).split()[1].replace('(', '')
-            y = str(poly.Centroid()).split()[2].replace(')', '')
+            x = str(poly.Centroid().GetX())
+            y = str(poly.Centroid().GetY())
+            # convert to spherical coordinates
+            p = poly.Centroid()
+            p.Transform(coordTransform)
             # add new geom to layer
             outFeature = ogr.Feature(featureDefn)
             outFeature.SetGeometry(poly)
-            outFeature.SetField('Centroid', '[' + str(x) + ',' + str(y) + ']')
+            outFeature.SetField('CentroidProjected', '[' + str(x) + ',' + str(y) + ']')
+            outFeature.SetField('CentroidSpherical', '[' + str(p.GetX()) + ',' + str(p.GetY()) + ']')
+
             outLayer.CreateFeature(outFeature)
             outFeature.Destroy
             
@@ -225,8 +238,4 @@ def createFishNet(outFile, xmin, ymin, xmax, ymax, gridHeight, gridWidth, projec
                                 
     # Close DataSources
     outDataSource.Destroy()
-
-
-
-
 
