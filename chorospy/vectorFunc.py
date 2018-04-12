@@ -192,6 +192,7 @@ def createFishNet(outFile, xmin, ymin, xmax, ymax, gridHeight, gridWidth, projec
         outLayer = outDataSource.CreateLayer(outFile, srs = sphericalSpatialRef, geom_type=ogr.wkbPolygon)
     
     #create field in the features' properties
+    outLayer.CreateField(ogr.FieldDefn('cellID', ogr.OFTInteger))
     outLayer.CreateField(ogr.FieldDefn('Original Centroid', ogr.OFTString))
     if spherical == True:
         outLayer.CreateField(ogr.FieldDefn('Spherical Centroid', ogr.OFTString))
@@ -204,10 +205,11 @@ def createFishNet(outFile, xmin, ymin, xmax, ymax, gridHeight, gridWidth, projec
     cellRight = xmin + gridWidth
     cellTop = ymax
     cellBottom = ymax - gridHeight
-    
+    cellID = 0
     for r in range(rows):
         
         for c in range(cols):
+            cellID += 1
             # create geometry
             LRing = ogr.Geometry(ogr.wkbLinearRing)
             LRing.AddPoint(cellLeft, cellTop)
@@ -230,7 +232,8 @@ def createFishNet(outFile, xmin, ymin, xmax, ymax, gridHeight, gridWidth, projec
             # add new geom to layer
             outFeature = ogr.Feature(featureDefn)
             outFeature.SetGeometry(poly)
-            # add centroid property
+            # add properties
+            outFeature.SetField('cellID', cellID)
             outFeature.SetField('Original Centroid', '[' + str(xOrigin) + ',' + str(yOrigin) + ']')
             if spherical == True:
                 outFeature.SetField('Spherical Centroid', '[' + str(x) + ',' + str(y) + ']')
