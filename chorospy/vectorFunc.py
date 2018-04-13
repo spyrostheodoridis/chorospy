@@ -179,9 +179,9 @@ def createFishNet(outFile, xmin, ymin, xmax, ymax, gridHeight, gridWidth, projec
         
 
     ####### create output file #######
-    if outFile.split('.')[1] == 'json':
+    if outFile.split('.')[-1] == 'json':
         outDriver = ogr.GetDriverByName('GeoJSON')
-    if outFile.split('.')[1] == 'shp':
+    if outFile.split('.')[-1] == 'shp':
         outDriver = ogr.GetDriverByName('ESRI Shapefile')
     if os.path.exists(outFile):
         os.remove(outFile)
