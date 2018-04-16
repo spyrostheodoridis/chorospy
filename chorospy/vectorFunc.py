@@ -151,7 +151,7 @@ def disaggregate(df,Lon, Lat, dist):
 
 #function for creating fishnets with centroids
 #function for creating fishnets with centroids
-def createFishNet(outFile, projection, xmin=None, ymax=None, xmax=None, ymin=None, cellWidth=None, cellHeight=None, nRows=None, nCols=None, extentIsSpherical=True, sphericalCentroid=False):
+def createFishNet(outFile, projection, xmin=None, ymax=None, xmax=None, ymin=None, cellWidth=None, cellHeight=None, nCols=None, nRows=None, extentIsSpherical=True, sphericalCentroid=False):
     # define projection
     out_srs = osr.SpatialReference()
     out_srs.ImportFromProj4(projection)
@@ -173,15 +173,11 @@ def createFishNet(outFile, projection, xmin=None, ymax=None, xmax=None, ymin=Non
         
         xmin, ymax, xmax, ymin = upLeft.GetX(), upLeft.GetY(), loRight.GetX(), loRight.GetY()
             
-    # if oposite corner is not specified
-    if xmax == None or ymin == None:
-        rows = nRows
-        cols = nCols
-    
+    rows = nRows
+    cols = nCols
+
     # if cell width and height are not specified
     if cellWidth == None or cellHeight == None:
-        rows = nRows
-        cols = nCols
         cellWidth = (xmax-xmin) / nCols
         cellHeight = (ymax-ymin) / nRows
         
@@ -280,6 +276,5 @@ def createFishNet(outFile, projection, xmin=None, ymax=None, xmax=None, ymin=Non
           \nUpper Left: {} {}\
           \nLower Right: {} {}'
           .format(cols, rows, cellWidth, cellHeight, [xmin, ymax], [upLeftSphere.GetX(), upLeftSphere.GetY()], [xmin + cols*cellWidth, ymax - rows*cellHeight], [loRightSphere.GetX(), loRightSphere.GetY()]))
-    
     
 
