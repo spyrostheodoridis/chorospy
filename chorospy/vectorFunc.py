@@ -151,7 +151,7 @@ def disaggregate(df,Lon, Lat, dist):
 
 #function for creating fishnets with centroids
 #function for creating fishnets with centroids
-def createFishNet(outFile, xmin, ymin, xmax, ymax, gridHeight, gridWidth, projection, adjustGrid = True, spherical = False):
+def createFishNet(outFile, projection, xmin=None, ymax=None, xmax=None, ymin=None, cellWidth=None, cellHeight=None, nRows=None, nCols=None, extentIsSpherical=True, sphericalCentroid=False):
     # define projection
     out_srs = osr.SpatialReference()
     out_srs.ImportFromProj4(projection)
@@ -160,24 +160,37 @@ def createFishNet(outFile, xmin, ymin, xmax, ymax, gridHeight, gridWidth, projec
     sphericalSpatialRef = osr.SpatialReference()
     sphericalSpatialRef.ImportFromProj4('+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0')
     coordTransform = osr.CoordinateTransformation(out_srs, sphericalSpatialRef)
-
-    # convert numbers to float
-    xmin = float(xmin)
-    xmax = float(xmax)
-    ymin = float(ymin)
-    ymax = float(ymax)
-    gridWidth = float(gridWidth)
-    gridHeight = float(gridHeight)
-    # n of rows
-    rows = int((ymax-ymin)/gridHeight)
-    # n of columns
-    cols = int((xmax-xmin)/gridWidth)
-    #readjust width, height
-    if adjustGrid == True:
-        gridWidth = (xmax-xmin) / cols
-        gridHeight = (ymax-ymin) / rows
+    
+    #if extent is in spherical coordinates convert it to the defined projection
+    if extentIsSpherical == True:
+        pointTransform = osr.CoordinateTransformation(sphericalSpatialRef, out_srs)
+        upLeft = ogr.Geometry(ogr.wkbPoint)
+        upLeft.AddPoint(xmin,ymax)
+        upLeft.Transform(pointTransform)
+        loRight = ogr.Geometry(ogr.wkbPoint)
+        loRight.AddPoint(xmax,ymin)
+        loRight.Transform(pointTransform)
         
-
+        xmin, ymax, xmax, ymin = upLeft.GetX(), upLeft.GetY(), loRight.GetX(), loRight.GetY()
+            
+    # if oposite corner is not specified
+    if xmax == None or ymin == None:
+        rows = nRows
+        cols = nCols
+    
+    # if cell width and height are not specified
+    if cellWidth == None or cellHeight == None:
+        rows = nRows
+        cols = nCols
+        cellWidth = (xmax-xmin) / nCols
+        cellHeight = (ymax-ymin) / nRows
+        
+    # if number of rows and columns is not specified
+    if nRows == None or nCols == None:
+        rows = int((ymax-ymin)/cellHeight)
+        cols = int((xmax-xmin)/cellWidth)
+    
+    
     ####### create output file #######
     if outFile.split('.')[-1] == 'json':
         outDriver = ogr.GetDriverByName('GeoJSON')
@@ -186,15 +199,15 @@ def createFishNet(outFile, xmin, ymin, xmax, ymax, gridHeight, gridWidth, projec
     if os.path.exists(outFile):
         os.remove(outFile)
     outDataSource = outDriver.CreateDataSource(outFile)
-    if spherical == False:
+    if sphericalCentroid == False:
         outLayer = outDataSource.CreateLayer(outFile, srs = out_srs, geom_type=ogr.wkbPolygon)
-    elif spherical == True:
+    elif sphericalCentroid == True:
         outLayer = outDataSource.CreateLayer(outFile, srs = sphericalSpatialRef, geom_type=ogr.wkbPolygon)
     
     #create field in the features' properties
     outLayer.CreateField(ogr.FieldDefn('cellID', ogr.OFTInteger))
     outLayer.CreateField(ogr.FieldDefn('Original Centroid', ogr.OFTString))
-    if spherical == True:
+    if sphericalCentroid == True:
         outLayer.CreateField(ogr.FieldDefn('Spherical Centroid', ogr.OFTString))
     #create layer definition
     featureDefn = outLayer.GetLayerDefn()
@@ -202,9 +215,9 @@ def createFishNet(outFile, xmin, ymin, xmax, ymax, gridHeight, gridWidth, projec
     ###### create grid cells #######
     # initiate first cell
     cellLeft = xmin
-    cellRight = xmin + gridWidth
+    cellRight = xmin + cellWidth
     cellTop = ymax
-    cellBottom = ymax - gridHeight
+    cellBottom = ymax - cellHeight
     cellID = 0
     for r in range(rows):
         
@@ -223,7 +236,7 @@ def createFishNet(outFile, xmin, ymin, xmax, ymax, gridHeight, gridWidth, projec
             xOrigin = str(poly.Centroid().GetX())
             yOrigin = str(poly.Centroid().GetY())
             #reproject poly
-            if spherical == True:
+            if sphericalCentroid == True:
                 poly.Transform(coordTransform)
                 # calculate spherical centroid
                 x = str(poly.Centroid().GetX())
@@ -235,21 +248,38 @@ def createFishNet(outFile, xmin, ymin, xmax, ymax, gridHeight, gridWidth, projec
             # add properties
             outFeature.SetField('cellID', cellID)
             outFeature.SetField('Original Centroid', '[' + str(xOrigin) + ',' + str(yOrigin) + ']')
-            if spherical == True:
+            if sphericalCentroid == True:
                 outFeature.SetField('Spherical Centroid', '[' + str(x) + ',' + str(y) + ']')
 
             outLayer.CreateFeature(outFeature)
             outFeature.Destroy
             
-            cellLeft += gridWidth
-            cellRight += gridWidth
+            cellLeft += cellWidth
+            cellRight += cellWidth
             
         # define new row start
         cellLeft = xmin
-        cellRight = xmin + gridWidth
-        cellTop -= gridHeight
-        cellBottom -= gridHeight
+        cellRight = xmin + cellWidth
+        cellTop -= cellHeight
+        cellBottom -= cellHeight
                                 
     # Close DataSources
     outDataSource.Destroy()
+    
+    #get extent in spherical coordinates
+    upLeftSphere = ogr.Geometry(ogr.wkbPoint)
+    upLeftSphere.AddPoint(xmin,ymax)
+    upLeftSphere.Transform(coordTransform)
+    loRightSphere = ogr.Geometry(ogr.wkbPoint)
+    loRightSphere.AddPoint(xmin + cols*cellWidth, ymax - rows*cellHeight)
+    loRightSphere.Transform(coordTransform)
+    
+    
+    print('Created grid with dimensions {} (width) x {} (height)\
+          \ncell resolution of {} x {} units\
+          \nUpper Left: {} {}\
+          \nLower Right: {} {}'
+          .format(cols, rows, cellWidth, cellHeight, [xmin, ymax], [upLeftSphere.GetX(), upLeftSphere.GetY()], [xmin + cols*cellWidth, ymax - rows*cellHeight], [loRightSphere.GetX(), loRightSphere.GetY()]))
+    
+    
 
