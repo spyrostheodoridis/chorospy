@@ -173,6 +173,7 @@ def createFishNet(outFile, projection, xmin=None, ymax=None, xmax=None, ymin=Non
         
         xmin, ymax, xmax, ymin = upLeft.GetX(), upLeft.GetY(), loRight.GetX(), loRight.GetY()
             
+    #define number of rows (height) and columns (width)
     rows = nRows
     cols = nCols
 
