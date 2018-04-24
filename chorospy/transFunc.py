@@ -66,3 +66,24 @@ def rasterToJSON (infile, outfile):
         fp.write(']\n}\n')           
         #json.dump(gdataJSON, fp, indent=4)
     fp.close()
+
+
+# reproject a point
+def reprojectPoint(inCRS, outCRS, point):
+    inSpatialRef = osr.SpatialReference()
+    inSpatialRef.ImportFromProj4(inCRS)
+
+    outSpatialRef = osr.SpatialReference()
+    outSpatialRef.ImportFromProj4(outCRS)
+
+    coordTransform = osr.CoordinateTransformation(inSpatialRef, outSpatialRef)
+    
+    x = point[0]
+    y = point[1]
+    # create a geometry from coordinates
+    point = ogr.Geometry(ogr.wkbPoint)
+    point.AddPoint(float(x), float(y))
+    # transform point
+    point.Transform(coordTransform)
+
+    return [point.GetX(), point.GetY()]
