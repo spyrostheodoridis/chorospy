@@ -48,9 +48,10 @@ filteredPoints, removedPoints = chorospy.disaggregate(inPoints, 'x', 'y', 0.0083
 ### Create polygon grid (fishnet)
 Creating a regularly-spaced grid (fishnet) is a common task in physical geography. The following function creates a vector file
 with polygons representing the cells of the grid. We can define the spatial extent of the grid, the cell edge size, the number of rows and columns and the projection (in proj4 format).
-The function supports two vector formats, json and shp. For this example, we create a grid of approximately 500 by 500 km cells at the Lambert cylindrical equal-area projection. When the spherical argument is set to true, the features are represented with spherical coordinates in the final vector file.
+The function supports two vector formats, json and shp. For this example, we create a grid of approximately 500 by 500 km cells at the Equidistant Cylindrical (Plate Carrée) projection.
+When the sphericalCentroid argument is set to true, the features are represented with spherical coordinates in the final vector file.
 ```python
-proj4 = '+proj=laea +lat_0=45.5 +lon_0=-114.125 +x_0=0 +y_0=0 +a=6371007.181 +b=6371007.181 +units=km +no_defs'
+proj4 = 'proj +proj=eqc +lat_ts=0 +lat_0=0 +lon_0=0 +x_0=0 +y_0=0 +ellps=WGS84 +datum=WGS84 +units=km +no_defs'
 chorospy.createFishNet('lambert.json', proj4, xmin=-180, ymax=90, xmax=180, ymin=-90, cellWidth=500, cellHeight=500, nRows=None, nCols=None, extentIsSpherical = True, sphericalCentroid = True)
 ```
 
