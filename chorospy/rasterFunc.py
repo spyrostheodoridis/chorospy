@@ -92,6 +92,8 @@ def getRasterValues(indir, rasterfileList, skipNoData = True):
                             y = y0 + r*h + h/2
                             vList.append(['{:.6f}'.format(x),'{:.6f}'.format(y),column])
                     elif skipNoData == False:
+                        if column == nodata:
+                            column = numpy.nan
                         x = x0 + c*w + w/2
                         y = y0 + r*h + h/2
                         vList.append(['{:.6f}'.format(x),'{:.6f}'.format(y),column])
@@ -109,7 +111,7 @@ def getRasterValues(indir, rasterfileList, skipNoData = True):
             if skipNoData == True: 
                 vList = [c for r in data for c in r if c != nodata]
             elif skipNoData == False:
-                vList = [c for r in data for c in r]
+                vList = [c if c != nodata else numpy.nan for r in data for c in r]
                 
             df[rs] = pandas.Series(vList)
     
