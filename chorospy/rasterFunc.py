@@ -68,6 +68,8 @@ def getValuesAtPoint(indir, rasterfileList, pos, lon, lat, sp):
 def getRasterValues(indir, rasterfileList, skipNoData = True):
     
     for i, rs in enumerate(rasterfileList):
+
+        print('processing {}'.format(rs))
         
         if i == 0:
             vList = []
@@ -85,14 +87,14 @@ def getRasterValues(indir, rasterfileList, skipNoData = True):
                 x = 0
                 for c, column in enumerate(row):
                     if skipNoData == True:
-                        if column == nodata:
+                        if '{:0.3e}'.format(column) == '{:0.3e}'.format(nodata): #if value is no data (I reduced it to three digits to avoid conflicts)
                             pass
                         else:
                             x = x0 + c*w + w/2
                             y = y0 + r*h + h/2
                             vList.append(['{:.6f}'.format(x),'{:.6f}'.format(y),column])
                     elif skipNoData == False:
-                        if column == nodata:
+                        if '{:0.3e}'.format(column) == '{:0.3e}'.format(nodata):
                             column = numpy.nan
                         x = x0 + c*w + w/2
                         y = y0 + r*h + h/2
@@ -109,13 +111,15 @@ def getRasterValues(indir, rasterfileList, skipNoData = True):
             #free memory
             del gdata
             if skipNoData == True: 
-                vList = [c for r in data for c in r if c != nodata]
+                vList = [c for r in data for c in r if '{:0.3e}'.format(c) == '{:0.3e}'.format(nodata)]
             elif skipNoData == False:
-                vList = [c if c != nodata else numpy.nan for r in data for c in r]
+                vList = [c if '{:0.3e}'.format(c) != '{:0.3e}'.format(nodata) else numpy.nan for r in data for c in r]
                 
             df[rs] = pandas.Series(vList)
     
-    del data, band       
+    del data, band
+    
+    print('extracted values written in dataframe')   
     return(df)
 
 
