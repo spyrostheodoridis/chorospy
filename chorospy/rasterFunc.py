@@ -77,6 +77,8 @@ def getRasterValues(indir, rasterfileList, skipNoData = True):
             gt = gdata.GetGeoTransform()
             band = gdata.GetRasterBand(1)
             nodata = band.GetNoDataValue()
+            if not nodata: #if there's no data defined, assign a very small number
+                nodata = -3.402823e+38 
             data = band.ReadAsArray().astype(numpy.float)
             #free memory
             del gdata
@@ -107,6 +109,8 @@ def getRasterValues(indir, rasterfileList, skipNoData = True):
             gt = gdata.GetGeoTransform()
             band = gdata.GetRasterBand(1)
             nodata = band.GetNoDataValue()
+            if not nodata: #if there's no data defined, assign a very small number
+                nodata = -3.402823e+38
             data = band.ReadAsArray().astype(numpy.float)
             #free memory
             del gdata
