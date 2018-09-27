@@ -4,7 +4,7 @@ import numpy
 import os
 import math
 
-def getValuesAtPoint(indir, rasterfileList, pos, lon, lat, sp):
+def getValuesAtPoint(indir, rasterfileList, pos, lon, lat, sp = ''):
     #gt(2) and gt(4) coefficients are zero, and the gt(1) is pixel width, and gt(5) is pixel height.
     #The (gt(0),gt(3)) position is the top left corner of the top left pixel of the raster.
     for i, rs in enumerate(rasterfileList):
@@ -25,6 +25,14 @@ def getValuesAtPoint(indir, rasterfileList, pos, lon, lat, sp):
         xcount = int(math.ceil((xmax - xmin)/w)+1)
         ycount = int(math.ceil((ymax - ymin)/h)+1)
 
+        if xoff + xcount > gdata.RasterXSize:
+            xoff = 0
+            xcount = gdata.RasterXSize
+
+        if yoff + ycount > gdata.RasterYSize:
+            yoff = 0
+            ycount = gdata.RasterYSize
+
         data = band.ReadAsArray(xoff, yoff, xcount, ycount).astype(numpy.float)
         #free memory
         del gdata
@@ -41,7 +49,11 @@ def getValuesAtPoint(indir, rasterfileList, pos, lon, lat, sp):
                         value = data[y,x]
                     else:
                         value = numpy.nan
-                    presVAL = [p[1][sp],p[1][lon],p[1][lat], '{:.6f}'.format(Xc), '{:.6f}'.format(Yc), value]
+
+                    if sp:
+                        presVAL = [p[1][sp],p[1][lon],p[1][lat], '{:.6f}'.format(Xc), '{:.6f}'.format(Yc), value]
+                    else:
+                        presVAL = [1,p[1][lon],p[1][lat], '{:.6f}'.format(Xc), '{:.6f}'.format(Yc), value]
                     presValues.append(presVAL)
                 except:
                     pass
