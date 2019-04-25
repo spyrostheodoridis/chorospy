@@ -4,7 +4,7 @@ import numpy
 import os
 import math
 
-def getValuesAtPoint(indir, rasterfileList, pos, lon, lat, sp = ''):
+def getValuesAtPoint(indir, rasterfileList, pos, lon='x', lat='y', sp = ''):
     #gt(2) and gt(4) coefficients are zero, and the gt(1) is pixel width, and gt(5) is pixel height.
     #The (gt(0),gt(3)) position is the top left corner of the top left pixel of the raster.
     for i, rs in enumerate(rasterfileList):
