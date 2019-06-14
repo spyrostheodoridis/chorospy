@@ -28,7 +28,7 @@ def makeUtmCS(lon, lat):
 # inPoints is a list of lists e.g. [[[x1,y1], [x2,y2]], [[x3,y3], [x4,y4]]]
 # each list of points is saved as a separate feature in the final file
 #########################################
-def pointToGeo(inProj, inPoints, outFile, layerName, fields, buffer = False, bufferZone = 50000, convexHull = False, outFormat = 'json'):
+def pointToGeo(inProj, inPoints, outFile, fields, layerName = 'Vector', buffer = False, bufferZone = 50000, convexHull = False, outFormat = 'json'):
     #define projections for the transformation
     inSpatialRef = osr.SpatialReference()
     inSpatialRef.ImportFromEPSG(inProj) #datum of the points
